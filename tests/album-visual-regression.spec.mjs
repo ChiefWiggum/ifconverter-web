@@ -25,6 +25,12 @@ const COMPARE_WIDTH = 800;
 const MAX_DIFF_RATIO = 0.05;
 const PIXEL_THRESHOLD = 0.2;
 const CENTER_STRIP_HALF = 0.02;
+const COVER_VIEWER_MASKS = [
+  // Small round viewer marker centered on the spine.
+  { x: 0.488, y: 0.455, width: 0.026, height: 0.055 },
+  // Red ifolor logo / badge near the bottom inner edge of the back cover.
+  { x: 0.425, y: 0.915, width: 0.085, height: 0.06 }
+];
 
 const ALBUM_CASES = [
   {
@@ -33,6 +39,7 @@ const ALBUM_CASES = [
     albumPath: path.join('d:', 'Documents', 'ifolor', 'Photobooks', 'Cook Islands 2014'),
     fixtureDir: path.join(FIXTURES_DIR, 'cook-islands'),
     cases: [
+      { label: 'pages-cover', indices: [0], referenceFile: 'reference-pages-cover.png', maskCenterStrip: false, maskRects: COVER_VIEWER_MASKS },
       { label: 'pages-1', indices: [1], referenceFile: 'reference-pages-1.png' },
       { label: 'pages-10-11', indices: [6], referenceFile: 'reference-pages-10-11.png' },
       { label: 'pages-14-15', indices: [8], referenceFile: 'reference-pages-14-15.png' },
@@ -44,6 +51,7 @@ const ALBUM_CASES = [
     albumPath: path.join('d:', 'Documents', 'ifolor', 'Photobooks', 'Indien_China'),
     fixtureDir: path.join(FIXTURES_DIR, 'india-china'),
     cases: [
+      { label: 'pages-cover', indices: [0], referenceFile: 'reference-pages-cover.png', maskCenterStrip: false, maskRects: COVER_VIEWER_MASKS },
       { label: 'pages-10-11', indices: [6], referenceFile: 'reference-pages-10-11.png' },
       { label: 'pages-16-17', indices: [9], referenceFile: 'reference-pages-16-17.png' },
       { label: 'pages-20-21', indices: [11], referenceFile: 'reference-pages-20-21.png' },
@@ -66,6 +74,24 @@ function maskCenterStrip(buf, width, height) {
       buf[i + 1] = 0;
       buf[i + 2] = 0;
       buf[i + 3] = 255;
+    }
+  }
+}
+
+function maskRects(buf, width, height, rects = []) {
+  for (const rect of rects) {
+    const left = Math.max(0, Math.floor(rect.x * width));
+    const top = Math.max(0, Math.floor(rect.y * height));
+    const right = Math.min(width, Math.ceil((rect.x + rect.width) * width));
+    const bottom = Math.min(height, Math.ceil((rect.y + rect.height) * height));
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) {
+        const i = (y * width + x) * 4;
+        buf[i] = 0;
+        buf[i + 1] = 0;
+        buf[i + 2] = 0;
+        buf[i + 3] = 255;
+      }
     }
   }
 }
@@ -125,7 +151,7 @@ async function loadAlbumAndRenderSelection(page, albumPath, indices) {
   return Buffer.from(screenshot.replace(/^data:image\/\w+;base64,/, ''), 'base64');
 }
 
-async function compareToReference(screenshotBuf, referencePath, outputDir, outputLabel, maskCenter = true) {
+async function compareToReference(screenshotBuf, referencePath, outputDir, outputLabel, maskCenter = true, rectMasks = []) {
   const refMeta = await sharp(referencePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const refW = refMeta.info.width;
   const refH = refMeta.info.height;
@@ -138,6 +164,10 @@ async function compareToReference(screenshotBuf, referencePath, outputDir, outpu
   if (maskCenter) {
     maskCenterStrip(actual, compareW, compareH);
     maskCenterStrip(expected, compareW, compareH);
+  }
+  if (rectMasks.length) {
+    maskRects(actual, compareW, compareH, rectMasks);
+    maskRects(expected, compareW, compareH, rectMasks);
   }
 
   const diffPixels = pixelmatch(actual, expected, null, compareW, compareH, { threshold: PIXEL_THRESHOLD });
@@ -194,7 +224,8 @@ for (const album of ALBUM_CASES) {
           refPath,
           albumOutputDir,
           testCase.label,
-          testCase.maskCenterStrip !== false
+          testCase.maskCenterStrip !== false,
+          testCase.maskRects || []
         );
 
         console.log(`[${album.title}] ${testCase.label}: ${matchPct.toFixed(2)}% match`);

@@ -74,7 +74,7 @@ export class PageRenderer {
         for (const obj of textOnly) {
             await this.drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, options, log);
         }
-        
+
         return canvas;
     }
     
@@ -97,6 +97,7 @@ export class PageRenderer {
             legacyFallback: false
         };
     }
+
 
     async drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, renderOptions, log) {
         const contentType = obj.defaultContentType;
@@ -514,16 +515,17 @@ export class PageRenderer {
             };
             
             const align = (horizontalAlign || 'Left').toLowerCase();
+            const textScaleFactor = scale * dpiScale;
             const paragraphs = textData.paragraphs?.length
                 ? textData.paragraphs
                 : [{ runs: textData.runs, textAlignment: textData.textAlignment }];
 
-            const createToken = (run, rawText) => {
+            const createToken = (run, rawText, paragraphAlignment = align) => {
                 if (!rawText) return null;
                 const text = rawText.replace(/\t/g, '    ');
                 if (!text) return null;
 
-                let fontSize = (run.fontSize ?? textStyle.fontSize ?? textData.defaultStyle?.fontSize ?? 12) * scale * dpiScale;
+                let fontSize = (run.fontSize ?? textStyle.fontSize ?? textData.defaultStyle?.fontSize ?? 12) * textScaleFactor;
                 if (!Number.isFinite(fontSize) || fontSize < 1) fontSize = Math.max(scale, 1);
 
                 const fontFamily = (run.fontFamily || textStyle.fontName || textData.defaultStyle?.fontFamily || 'Arial').replace(/['"]/g, '');
@@ -550,7 +552,8 @@ export class PageRenderer {
                     font,
                     fillStyle,
                     width: measuredWidth,
-                    lineHeight: fontSize * 1.35
+                    lineHeight: fontSize * 1.35,
+                    textAlignment: paragraphAlignment
                 };
             };
 
@@ -564,7 +567,8 @@ export class PageRenderer {
                     lines.push({
                         tokens: lineTokens,
                         width: lineWidth,
-                        height: lineHeight || ((textStyle.fontSize || textData.defaultStyle?.fontSize || 12) * scale * dpiScale * 1.35)
+                        height: lineHeight || ((textStyle.fontSize || textData.defaultStyle?.fontSize || 12) * textScaleFactor * 1.35),
+                        textAlignment: (paragraph.textAlignment || align || 'left').toLowerCase()
                     });
                     lineTokens = [];
                     lineWidth = 0;
@@ -576,14 +580,14 @@ export class PageRenderer {
                     const parts = run.text.replace(/\r/g, '').split(/(\s+)/);
                     for (const part of parts) {
                         if (!part) continue;
-                        let token = createToken(run, part);
+                        let token = createToken(run, part, paragraph.textAlignment);
                         if (!token) continue;
 
                         if (lineTokens.length === 0) {
                             const trimmed = token.text.replace(/^\s+/, '');
                             if (!trimmed) continue;
                             if (trimmed !== token.text) {
-                                token = createToken(run, trimmed);
+                                token = createToken(run, trimmed, paragraph.textAlignment);
                                 if (!token) continue;
                             }
                         }
@@ -593,7 +597,7 @@ export class PageRenderer {
                             const trimmed = token.text.replace(/^\s+/, '');
                             if (!trimmed) continue;
                             if (trimmed !== token.text) {
-                                token = createToken(run, trimmed);
+                                token = createToken(run, trimmed, paragraph.textAlignment);
                                 if (!token) continue;
                             }
                         }
@@ -612,7 +616,7 @@ export class PageRenderer {
             textCtx.textBaseline = 'top';
             let currentY = 0;
             for (const line of lines) {
-                const lineAlign = (line.tokens[0]?.textAlignment || align || 'left').toLowerCase();
+                const lineAlign = (line.textAlignment || line.tokens[0]?.textAlignment || align || 'left').toLowerCase();
                 let currentX = 0;
                 if (lineAlign === 'center') currentX = Math.max(0, (width - line.width) / 2);
                 else if (lineAlign === 'right') currentX = Math.max(0, width - line.width);
@@ -633,27 +637,6 @@ export class PageRenderer {
             else if (vAlign === 'bottom') destY = y + height - textHeight;
 
             const rotOp = obj.processing?.rotationOperation;
-            const isCoverTitle = page && project?.cover === page && textContent;
-            if (isCoverTitle) {
-                let coverCanvas = textCanvas;
-                if (rotOp?.degree && Math.abs(rotOp.degree) > 0.01) {
-                    coverCanvas = this.rotateImage(textCanvas, rotOp.degree).canvas;
-                }
-
-                const coverScale = 2;
-                const drawWidth = coverCanvas.width * coverScale;
-                const drawHeight = coverCanvas.height * coverScale;
-                const destX = Math.max(0, (ctx.canvas.width - drawWidth) / 2);
-                destY = Math.max(0, (ctx.canvas.height - drawHeight) / 2);
-
-                ctx.save();
-                ctx.globalAlpha = Math.max(Number(obj.foregroundOpacity) || 1, 0.99);
-                ctx.drawImage(coverCanvas, destX, destY, drawWidth, drawHeight);
-                ctx.restore();
-
-                log(`Drew cover title: ${textId}`);
-                return;
-            }
 
             // Apply rotation if needed
             ctx.save();
