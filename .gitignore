@@ -1,0 +1,32 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node (if using build tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Test files
+test-data/
+*.ipp
+Photos/
+Texts/
+
+# Personal album references and generated comparisons
+tests/fixtures/*
+!tests/fixtures/README.md
+tests/output/
+test-results/
