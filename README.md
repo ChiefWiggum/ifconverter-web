@@ -129,14 +129,6 @@ To modify:
 2. Styles are in `css/style.css`
 3. Main HTML structure is in `index.html`
 
-## Related Projects
-
-- [IFConverter](https://github.com/ChiefWiggum/IFConverter) - Original .NET desktop application
-
 ## License
 
 MIT License - See LICENSE file for details.
-
-## Credits
-
-Based on the reverse-engineering work from the [IFConverter](https://github.com/ChiefWiggum/IFConverter) project.
