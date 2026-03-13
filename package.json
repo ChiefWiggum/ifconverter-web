@@ -13,8 +13,5 @@
     "pngjs": "^7.0.0",
     "serve": "^14.2.4",
     "sharp": "^0.33.0"
-  },
-  "dependencies": {
-    "jspdf": "^4.2.0"
   }
 }
