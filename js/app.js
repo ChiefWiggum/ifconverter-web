@@ -771,7 +771,12 @@ class IFConverterApp {
     }
 }
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// DOM may already be ready when this module loads (libs load first in index.html).
+function bootIFConverterApp() {
     window.app = new IFConverterApp();
-});
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootIFConverterApp);
+} else {
+    bootIFConverterApp();
+}
