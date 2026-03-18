@@ -27,6 +27,17 @@
             </header>
 
             <div class="drop-zone" id="dropZone">
+                <div class="panel-header panel-header-foldable drop-zone-header" id="dropZoneHeader" tabindex="0" role="button" aria-expanded="true" aria-controls="dropZoneBody">
+                    <span class="panel-title">Photobook</span>
+                    <span class="panel-header-actions">
+                        <button type="button" class="btn-small drop-zone-change-btn" id="dropZoneExpandBtn">Change photobook</button>
+                        <span class="panel-chevron" aria-hidden="true"></span>
+                    </span>
+                </div>
+                <div class="drop-zone-body" id="dropZoneBody">
+                <div class="drop-zone-summary" id="dropZoneSummary" aria-hidden="true">
+                    <div class="drop-zone-summary-details" id="dropZoneSummaryDetails"></div>
+                </div>
                 <div class="drop-zone-content">
                     <div class="drop-icon-wrap" aria-hidden="true">
                         <svg
@@ -53,7 +64,7 @@
                     <div class="file-inputs">
                         <div class="file-input-wrapper">
                             <button class="btn btn-primary" type="button">
-                                Select Project.ipp
+                                Select photobook (.ipp)
                             </button>
                             <input type="file" id="ippFile" accept=".ipp,.bak" />
                         </div>
@@ -70,10 +81,15 @@
                         Your files stay local. Nothing is uploaded to any server.
                     </p>
                 </div>
+                </div>
             </div>
 
             <div class="options-panel" id="optionsPanel">
-                <h3>Options</h3>
+                <div class="panel-header panel-header-foldable options-panel-header" id="optionsPanelHeader" tabindex="0" role="button" aria-expanded="true" aria-controls="optionsPanelBody">
+                    <span class="panel-title">Options</span>
+                    <span class="panel-chevron" aria-hidden="true"></span>
+                </div>
+                <div class="options-panel-body" id="optionsPanelBody">
                 <div class="options-section">
                     <h4>Output</h4>
                     <div class="options-grid">
@@ -136,13 +152,17 @@
                         Transparent background is available for PNG and PDF exports only.
                     </p>
                 </div>
+                </div>
             </div>
 
             <div class="status" id="status"></div>
 
             <div class="project-info" id="projectInfo">
-                <h3>Project Information</h3>
-                <dl id="projectDetails"></dl>
+                <div class="panel-header panel-header-foldable project-info-header" id="projectInfoHeader" tabindex="0" role="button" aria-expanded="true" aria-controls="projectInfoBody">
+                    <span class="panel-title">Export</span>
+                    <span class="panel-chevron" aria-hidden="true"></span>
+                </div>
+                <div class="project-info-body" id="projectInfoBody">
                 <div class="progress-container">
                     <div class="progress-text" id="progressText">Ready</div>
                     <div class="progress-bar">
@@ -160,17 +180,21 @@
                         Download All as ZIP
                     </button>
                 </div>
-            </div>
-
-            <div class="log" id="log">
-                <div class="log-header">
-                    <span>Activity</span>
-                    <button class="btn-small" id="clearLogBtn">Clear</button>
                 </div>
-                <div class="log-content" id="logContent"></div>
             </div>
 
             <div class="pages-container" id="pagesContainer"></div>
+
+            <div class="log collapsed" id="log">
+                <div class="panel-header panel-header-foldable log-header" id="logHeader" tabindex="0" role="button" aria-expanded="false" aria-controls="logContent">
+                    <span class="panel-title">Activity</span>
+                    <span class="panel-header-actions log-header-actions">
+                        <button class="btn-small" id="clearLogBtn" type="button">Clear</button>
+                        <span class="panel-chevron" aria-hidden="true"></span>
+                    </span>
+                </div>
+                <div class="log-content" id="logContent"></div>
+            </div>
 
             <footer>
                 <p>

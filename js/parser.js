@@ -33,8 +33,14 @@ export class IFolorParser {
         }
 
         const root = doc.documentElement;
+        const name =
+            this.getTextContent(root, 'Name') ||
+            this.getTextContent(root, 'Title') ||
+            this.getTextContent(root, 'ProjectName') ||
+            '';
 
         return {
+            name: name || undefined,
             designCenterVersion: root.getAttribute('designCenterVersion'),
             version: root.getAttribute('version'),
             created: root.getAttribute('created'),

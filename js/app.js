@@ -8,6 +8,17 @@ import { IFolorParser } from './parser.js';
 import { PageRenderer } from './renderer.js';
 import { Logger } from './logger.js';
 
+function escapeHtml(s) {
+    if (s == null) return '';
+    const str = String(s);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class IFConverterApp {
     constructor() {
         this.parser = new IFolorParser();
@@ -27,6 +38,10 @@ class IFConverterApp {
     initElements() {
         // Drop zone
         this.dropZone = document.getElementById('dropZone');
+        this.dropZoneHeader = document.getElementById('dropZoneHeader');
+        this.dropZoneSummary = document.getElementById('dropZoneSummary');
+        this.dropZoneSummaryDetails = document.getElementById('dropZoneSummaryDetails');
+        this.dropZoneExpandBtn = document.getElementById('dropZoneExpandBtn');
 
         // File inputs
         this.ippFileInput = document.getElementById('ippFile');
@@ -35,6 +50,7 @@ class IFConverterApp {
 
         // Options
         this.optionsPanel = document.getElementById('optionsPanel');
+        this.optionsPanelHeader = document.getElementById('optionsPanelHeader');
         this.dpiSelect = document.getElementById('dpiSelect');
         this.outputFormatSelect = document.getElementById('outputFormatSelect');
         this.backgroundModeSelect = document.getElementById('backgroundModeSelect');
@@ -46,10 +62,11 @@ class IFConverterApp {
         // Status and info
         this.statusEl = document.getElementById('status');
         this.projectInfo = document.getElementById('projectInfo');
-        this.projectDetails = document.getElementById('projectDetails');
+        this.projectInfoHeader = document.getElementById('projectInfoHeader');
         this.progressText = document.getElementById('progressText');
         this.progressFill = document.getElementById('progressFill');
         this.logEl = document.getElementById('log');
+        this.logHeader = document.getElementById('logHeader');
 
         // Buttons
         this.renderBtn = document.getElementById('renderBtn');
@@ -78,6 +95,36 @@ class IFConverterApp {
             this.handleDrop(e.dataTransfer);
         });
 
+        this.dropZoneExpandBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.expandDropZone();
+        });
+        this.dropZoneHeader.addEventListener('click', (e) => {
+            if (!e.target.closest('.drop-zone-change-btn')) this.toggleDropZoneFold();
+        });
+        this.dropZoneHeader.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleDropZoneFold();
+            }
+        });
+
+        this.optionsPanelHeader.addEventListener('click', () => this.toggleOptionsPanelFold());
+        this.optionsPanelHeader.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleOptionsPanelFold();
+            }
+        });
+
+        this.projectInfoHeader.addEventListener('click', () => this.toggleProjectInfoFold());
+        this.projectInfoHeader.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleProjectInfoFold();
+            }
+        });
+
         // File inputs
         this.ippFileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -97,7 +144,19 @@ class IFConverterApp {
         this.renderBtn.addEventListener('click', () => this.renderAllPages());
         this.renderSomeBtn.addEventListener('click', () => this.openPageSelectModal());
         this.downloadAllBtn.addEventListener('click', () => this.downloadAllAsZip());
-        this.clearLogBtn.addEventListener('click', () => this.logger.clear());
+        this.clearLogBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.logger.clear();
+        });
+        this.logHeader.addEventListener('click', (e) => {
+            if (!e.target.closest('#clearLogBtn')) this.toggleLog();
+        });
+        this.logHeader.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleLog();
+            }
+        });
 
         // Options change
         this.scaleSelect.addEventListener('change', () => {
@@ -110,6 +169,39 @@ class IFConverterApp {
         this.fontColorInput.addEventListener('change', () => this.handleRenderOptionChange());
 
         this.updateOptionControlState();
+    }
+
+    collapseDropZone() {
+        this.dropZone.classList.add('collapsed', 'has-project');
+        if (this.dropZoneSummary) this.dropZoneSummary.setAttribute('aria-hidden', 'false');
+    }
+
+    expandDropZone() {
+        this.dropZone.classList.remove('collapsed');
+        if (this.dropZoneSummary) this.dropZoneSummary.setAttribute('aria-hidden', 'true');
+        this.optionsPanel.classList.remove('visible');
+        this.projectInfo.classList.remove('visible');
+        this.logEl.classList.remove('visible');
+    }
+
+    toggleDropZoneFold() {
+        const folded = this.dropZone.classList.toggle('folded');
+        this.dropZoneHeader.setAttribute('aria-expanded', String(!folded));
+    }
+
+    toggleOptionsPanelFold() {
+        const folded = this.optionsPanel.classList.toggle('folded');
+        this.optionsPanelHeader.setAttribute('aria-expanded', String(!folded));
+    }
+
+    toggleProjectInfoFold() {
+        const folded = this.projectInfo.classList.toggle('folded');
+        this.projectInfoHeader.setAttribute('aria-expanded', String(!folded));
+    }
+
+    toggleLog() {
+        const collapsed = this.logEl.classList.toggle('collapsed');
+        this.logHeader.setAttribute('aria-expanded', String(!collapsed));
     }
 
     handleRenderOptionChange() {
@@ -260,25 +352,26 @@ class IFConverterApp {
 
     async loadProjectFile(file) {
         try {
-            this.showStatus('Loading project file...', 'info');
-            this.logger.info(`Loading project: ${file.name}`);
+            this.showStatus('Loading photobook...', 'info');
+            this.logger.info(`Loading photobook: ${file.name}`);
 
             const arrayBuffer = await file.arrayBuffer();
             this.project = await this.parser.parseProject(arrayBuffer);
 
             this.displayProjectInfo();
-            this.showStatus('Project loaded successfully!', 'success');
-            this.logger.success(`Project loaded: ${this.project.projectId}`);
+            this.showStatus('Photobook loaded successfully!', 'success');
+            this.logger.success(`Photobook loaded: ${this.project.projectId}`);
 
             this.optionsPanel.classList.add('visible');
             this.projectInfo.classList.add('visible');
             this.logEl.classList.add('visible');
             this.updateOptionControlState();
+            this.collapseDropZone();
 
             this.checkReadyState();
         } catch (error) {
-            this.showStatus(`Error loading project: ${error.message}`, 'error');
-            this.logger.error(`Failed to load project: ${error.message}`);
+            this.showStatus(`Error loading photobook: ${error.message}`, 'error');
+            this.logger.error(`Failed to load photobook: ${error.message}`);
             console.error(error);
         }
     }
@@ -329,31 +422,56 @@ class IFConverterApp {
         return { photoRefs: photoIds.size, textRefs: textIds.size };
     }
 
-    displayProjectInfo() {
-        if (!this.project) return;
-
+    getProjectInfoFields() {
+        if (!this.project) return null;
         const totalPages = 1 + (this.project.pages?.length || 0);
         const { photoRefs, textRefs } = this.countReferencedPhotosAndTexts(this.project);
         const photosLabel = `${this.photos.size} (${photoRefs} referenced in book)`;
         const textsLabel = `${this.texts.size} (${textRefs} referenced in book)`;
+        return {
+            name: this.project.name,
+            projectId: this.project.projectId || 'N/A',
+            productId: this.project.productId || 'N/A',
+            version: this.project.version || 'N/A',
+            designCenterVersion: this.project.designCenterVersion || 'N/A',
+            created: this.project.created || 'N/A',
+            totalPages,
+            pagesLabel: `${totalPages} (1 cover + ${totalPages - 1} pages)`,
+            photosLabel,
+            textsLabel
+        };
+    }
 
-        this.projectDetails.innerHTML = `
-            <dt>Project ID</dt>
-            <dd>${this.project.projectId || 'N/A'}</dd>
+    displayProjectInfo() {
+        this.updateDropZoneSummary();
+    }
+
+    updateDropZoneSummary() {
+        const fields = this.getProjectInfoFields();
+        if (!fields || !this.dropZoneSummaryDetails) return;
+
+        const nameRow = fields.name
+            ? `<dt class="summary-name-label">Name</dt><dd class="summary-name">${escapeHtml(fields.name)}</dd>`
+            : '';
+
+        this.dropZoneSummaryDetails.innerHTML = `
+            ${nameRow}
+            <dt>Photobook ID</dt>
+            <dd>${escapeHtml(fields.projectId)}</dd>
             <dt>Product ID</dt>
-            <dd>${this.project.productId || 'N/A'}</dd>
+            <dd>${escapeHtml(fields.productId)}</dd>
             <dt>Version</dt>
-            <dd>${this.project.version || 'N/A'}</dd>
+            <dd>${escapeHtml(fields.version)}</dd>
             <dt>Design Center</dt>
-            <dd>${this.project.designCenterVersion || 'N/A'}</dd>
+            <dd>${escapeHtml(fields.designCenterVersion)}</dd>
             <dt>Created</dt>
-            <dd>${this.project.created || 'N/A'}</dd>
+            <dd>${escapeHtml(fields.created)}</dd>
             <dt>Total Pages</dt>
-            <dd>${totalPages} (1 cover + ${totalPages - 1} pages)</dd>
-            <dt>Photos Loaded</dt>
-            <dd>${photosLabel}</dd>
-            <dt>Texts Loaded</dt>
-            <dd>${textsLabel}</dd>
+            <dd>${fields.pagesLabel}</dd>
+            <dt>Photos</dt>
+            <dd>${fields.photosLabel}</dd>
+            <dt>Texts</dt>
+            <dd>${fields.textsLabel}</dd>
         `;
     }
 
@@ -368,7 +486,7 @@ class IFConverterApp {
         if (hasProject && hasPhotos) {
             this.logger.success('Ready to render! Click "Render All Pages" to start.');
         } else if (hasProject && !hasPhotos) {
-            this.logger.warning('Project loaded but no photos. Add photos for complete rendering.');
+            this.logger.warning('Photobook loaded but no photos. Add photos for complete rendering.');
         }
     }
 
@@ -397,7 +515,7 @@ class IFConverterApp {
     openPageSelectModal() {
         const allPages = this.getPageList();
         if (allPages.length === 0) {
-            this.showStatus('No pages in project', 'error');
+            this.showStatus('No pages in photobook', 'error');
             return;
         }
 
@@ -524,7 +642,7 @@ class IFConverterApp {
 
     async renderAllPages() {
         if (!this.project) {
-            this.showStatus('No project loaded', 'error');
+            this.showStatus('No photobook loaded', 'error');
             return;
         }
         const allPages = this.getPageList();
