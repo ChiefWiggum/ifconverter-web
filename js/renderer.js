@@ -75,7 +75,7 @@ export class PageRenderer {
             await this.drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, options, log);
         }
 
-        return canvas;
+        return this.trimCoverBleed(canvas, page, scale);
     }
     
     normalizeRenderOptions(renderOptions) {
@@ -96,6 +96,50 @@ export class PageRenderer {
             fontColor: renderOptions?.fontColor || '#000000',
             legacyFallback: false
         };
+    }
+
+    isTrimmedCoverSpread(page) {
+        const desc = page?.pageDescription;
+        const cutting = desc?.pageCutting;
+        return Boolean(
+            desc &&
+            cutting?.isFolded &&
+            cutting?.rectangle &&
+            desc.firstSidePageNumber < 0 &&
+            desc.secondSidePageNumber < 0 &&
+            desc.arrangement === 'DoublePageHorizontal'
+        );
+    }
+
+    trimCoverBleed(canvas, page, scale) {
+        if (!this.isTrimmedCoverSpread(page)) {
+            return canvas;
+        }
+
+        const rect = page.pageDescription.pageCutting.rectangle;
+        const cropX = Math.max(0, Math.round(rect.x * scale));
+        const cropY = Math.max(0, Math.round(rect.y * scale));
+        const cropWidth = Math.min(canvas.width - cropX, Math.round(rect.width * scale));
+        const cropHeight = Math.min(canvas.height - cropY, Math.round(rect.height * scale));
+
+        if (cropWidth <= 0 || cropHeight <= 0) {
+            return canvas;
+        }
+
+        // Covers are authored with extra bleed; trim back to the cut area so previews
+        // and exports match the printed/viewer composition without affecting inner pages.
+        const trimmed = document.createElement('canvas');
+        trimmed.width = cropWidth;
+        trimmed.height = cropHeight;
+
+        const trimmedCtx = this.configureCanvasContext(trimmed.getContext('2d'));
+        trimmedCtx.drawImage(
+            canvas,
+            cropX, cropY, cropWidth, cropHeight,
+            0, 0, cropWidth, cropHeight
+        );
+
+        return trimmed;
     }
 
 
