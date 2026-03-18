@@ -151,12 +151,49 @@
         </footer>
     </div>
 
-    <!-- Libraries -->
-    <script src="node_modules/pako/dist/pako.min.js"></script>
-    <script src="node_modules/jszip/dist/jszip.min.js"></script>
-    <script src="node_modules/jspdf/dist/jspdf.umd.min.js"></script>
-    
-    <!-- Application -->
-    <script type="module" src="js/app.js"></script>
+    <!-- Libraries: CDN first, vendor/ fallback (tests + offline + Cloudflare Pages) -->
+    <script>
+        (function () {
+            function loadScript(src) {
+                return new Promise(function (resolve, reject) {
+                    var s = document.createElement('script');
+                    s.src = src;
+                    s.onload = function () {
+                        resolve();
+                    };
+                    s.onerror = function () {
+                        reject(new Error('load failed: ' + src));
+                    };
+                    document.head.appendChild(s);
+                });
+            }
+            async function loadLib(cdn, local, ok) {
+                try {
+                    await loadScript(cdn);
+                    if (!ok()) await loadScript(local);
+                } catch (e) {
+                    await loadScript(local);
+                }
+            }
+            var CDN_PAKO = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+            var CDN_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+            var CDN_JSPDF = 'https://unpkg.com/jspdf@4.2.0/dist/jspdf.umd.min.js';
+            (async function () {
+                await loadLib(CDN_PAKO, 'vendor/pako.min.js', function () {
+                    return typeof pako !== 'undefined';
+                });
+                await loadLib(CDN_JSZIP, 'vendor/jszip.min.js', function () {
+                    return typeof JSZip !== 'undefined';
+                });
+                await loadLib(CDN_JSPDF, 'vendor/jspdf.umd.min.js', function () {
+                    return typeof window.jspdf !== 'undefined';
+                });
+                var m = document.createElement('script');
+                m.type = 'module';
+                m.src = 'js/app.js';
+                document.body.appendChild(m);
+            })();
+        })();
+    </script>
 </body>
 </html>
