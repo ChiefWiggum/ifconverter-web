@@ -5,15 +5,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>IFConverter Web - iFolor Photobook Converter</title>
         <link rel="stylesheet" href="css/style.css" />
-        <link
-            rel="icon"
-            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='16' y='18' width='68' height='64' rx='12' fill='%233b82f6'/><rect x='28' y='28' width='44' height='6' rx='3' fill='white'/><rect x='28' y='42' width='34' height='6' rx='3' fill='white'/><rect x='28' y='56' width='28' height='6' rx='3' fill='white'/></svg>"
-        />
+        <link rel="icon" type="image/png" sizes="512x512" href="assets/ifconverter-logo-20.png" />
     </head>
     <body>
         <div class="container">
             <header>
-                <h1>IFConverter <span class="web-badge">Browser</span></h1>
+                <div class="brand-lockup">
+                    <img
+                        class="brand-logo"
+                        src="assets/ifconverter-logo-20.png"
+                        alt="IFConverter Web logo"
+                        width="72"
+                        height="72"
+                    />
+                    <h1>IFConverter</h1>
+                </div>
                 <p class="subtitle">
                     Convert iFolor photobooks into clean image or PDF exports directly in your
                     browser.
@@ -22,7 +28,26 @@
 
             <div class="drop-zone" id="dropZone">
                 <div class="drop-zone-content">
-                    <div class="drop-icon" aria-hidden="true"></div>
+                    <div class="drop-icon-wrap" aria-hidden="true">
+                        <svg
+                            class="drop-icon"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="72"
+                            height="72"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"
+                            />
+                            <path d="M12 11v6" />
+                            <path d="m9 14 3 3 3-3" />
+                        </svg>
+                    </div>
                     <h2>Drop your photobook folder here</h2>
                     <p>Or select files manually:</p>
                     <div class="file-inputs">
