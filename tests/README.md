@@ -5,11 +5,11 @@ These tests render selected pages from the supported albums and compare them to 
 ## Prerequisites
 
 1. **Photobooks** present locally:
-   - `d:\Documents\ifolor\Photobooks\Cook Islands 2014`
-   - `d:\Documents\ifolor\Photobooks\Indien_China`
+    - `d:\Documents\ifolor\Photobooks\Cook Islands 2014`
+    - `d:\Documents\ifolor\Photobooks\Indien_China`
 2. **Reference images** stored under:
-   - `tests/fixtures/cook-islands/`
-   - `tests/fixtures/india-china/`
+    - `tests/fixtures/cook-islands/`
+    - `tests/fixtures/india-china/`
 3. **Playwright browser** installed once: `npx playwright install chromium`
 
 ## Run the test
@@ -59,8 +59,8 @@ tests/fixtures/
 
 - Inspect the **diff image** (path is printed in the error) to see where our render differs from the reference.
 - You can relax or tighten comparison in the spec:
-  - `MAX_DIFF_RATIO` (default `0.05`) – allow more or fewer pixel differences.
-  - `PIXEL_THRESHOLD` (default `0.2`) – sensitivity of pixel matching.
+    - `MAX_DIFF_RATIO` (default `0.05`) – allow more or fewer pixel differences.
+    - `PIXEL_THRESHOLD` (default `0.2`) – sensitivity of pixel matching.
 - If you add more references, extend the `ALBUM_CASES` list in `tests/album-visual-regression.spec.mjs`.
 
 ## First run without reference

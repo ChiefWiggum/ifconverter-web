@@ -1,6 +1,6 @@
 /**
  * Page Renderer
- * 
+ *
  * Renders iFolor photobook pages to HTML Canvas
  */
 
@@ -15,7 +15,7 @@ export class PageRenderer {
         ctx.imageSmoothingQuality = 'high';
         return ctx;
     }
-    
+
     /**
      * Render a page to canvas
      * @param {Object} page - Parsed page data
@@ -28,33 +28,42 @@ export class PageRenderer {
      * @param {Function} log - Logging function
      * @returns {HTMLCanvasElement}
      */
-    async renderPage(page, project, photos, texts, parser, scale = 1, renderOptions = {}, log = () => {}) {
+    async renderPage(
+        page,
+        project,
+        photos,
+        texts,
+        parser,
+        scale = 1,
+        renderOptions = {},
+        log = () => {}
+    ) {
         const desc = page.pageDescription;
         const width = Math.round(desc.width * scale);
         const height = Math.round(desc.height * scale);
         const dpiScale = (desc.dpi || 300) / 96;
         const options = this.normalizeRenderOptions(renderOptions);
-        
+
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        
+
         const ctx = this.configureCanvasContext(canvas.getContext('2d'));
 
         const pageBgColor = this.getPageBackgroundColor(page, options);
-        
+
         // Fill background
         if (pageBgColor) {
             ctx.fillStyle = pageBgColor;
             ctx.fillRect(0, 0, width, height);
         }
-        
+
         const sortByOrder = (a, b) => (a.order || 0) - (b.order || 0);
         const isText = (obj) => {
             const f = obj.foreground;
             return f && (f.type === 'text' || obj.defaultContentType === 'Text');
         };
-        
+
         const allObjects = [];
         if (page.pageBackground?.pageObjects) allObjects.push(...page.pageBackground.pageObjects);
         if (page.pageLayers) {
@@ -63,21 +72,45 @@ export class PageRenderer {
             }
         }
         allObjects.sort(sortByOrder);
-        
-        const nonText = allObjects.filter(o => !isText(o));
+
+        const nonText = allObjects.filter((o) => !isText(o));
         const textOnly = allObjects.filter(isText);
-        
+
         // Draw images and colors first, then all text on top (so text is never behind images)
         for (const obj of nonText) {
-            await this.drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, options, log);
+            await this.drawPageObject(
+                ctx,
+                obj,
+                page,
+                project,
+                photos,
+                texts,
+                parser,
+                scale,
+                dpiScale,
+                options,
+                log
+            );
         }
         for (const obj of textOnly) {
-            await this.drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, options, log);
+            await this.drawPageObject(
+                ctx,
+                obj,
+                page,
+                project,
+                photos,
+                texts,
+                parser,
+                scale,
+                dpiScale,
+                options,
+                log
+            );
         }
 
         return this.trimCoverBleed(canvas, page, scale);
     }
-    
+
     normalizeRenderOptions(renderOptions) {
         if (typeof renderOptions === 'string') {
             return {
@@ -135,29 +168,62 @@ export class PageRenderer {
         const trimmedCtx = this.configureCanvasContext(trimmed.getContext('2d'));
         trimmedCtx.drawImage(
             canvas,
-            cropX, cropY, cropWidth, cropHeight,
-            0, 0, cropWidth, cropHeight
+            cropX,
+            cropY,
+            cropWidth,
+            cropHeight,
+            0,
+            0,
+            cropWidth,
+            cropHeight
         );
 
         return trimmed;
     }
 
-
-    async drawPageObject(ctx, obj, page, project, photos, texts, parser, scale, dpiScale, renderOptions, log) {
+    async drawPageObject(
+        ctx,
+        obj,
+        page,
+        project,
+        photos,
+        texts,
+        parser,
+        scale,
+        dpiScale,
+        renderOptions,
+        log
+    ) {
         const contentType = obj.defaultContentType;
         const foreground = obj.foreground;
-        
+
         if (!foreground) {
             // Empty placeholder
             return;
         }
-        
+
         try {
             if (foreground.type === 'color') {
                 this.drawColorContent(ctx, obj, scale, renderOptions, log);
             } else if (foreground.type === 'text' || contentType === 'Text') {
-                console.log('[renderer] Text object found, textId:', foreground.textId, 'contentType:', contentType);
-                await this.drawText(ctx, obj, page, project, texts, parser, scale, dpiScale, renderOptions, log);
+                console.log(
+                    '[renderer] Text object found, textId:',
+                    foreground.textId,
+                    'contentType:',
+                    contentType
+                );
+                await this.drawText(
+                    ctx,
+                    obj,
+                    page,
+                    project,
+                    texts,
+                    parser,
+                    scale,
+                    dpiScale,
+                    renderOptions,
+                    log
+                );
             } else if (foreground.type === 'image' || contentType === 'Image') {
                 await this.drawImage(ctx, obj, project, photos, scale, log);
             } else {
@@ -168,83 +234,90 @@ export class PageRenderer {
             console.error('Error drawing object:', error);
         }
     }
-    
+
     async drawImage(ctx, obj, project, photos, scale, log) {
         const foreground = obj.foreground;
         if (!foreground) return;
-        
+
         // Get the image ID
         let imageId = foreground.id;
         if (!imageId) return;
-        
+
         // Extract the GUID from the ID (format: "guid|shell?path?timestamp" or "guid|plugin?...")
         const guid = imageId.split('|')[0];
-        
+
         // Check if it's clipart
         if (imageId.includes('|plugin?') || foreground.imageType === 'PluginClipart') {
             log(`Skipping clipart: ${guid}`);
             return;
         }
-        
+
         // Find the photo file
         let photoFile = photos.get(guid);
-        
+
         // If not found by GUID, try to find by checking photo informations
         if (!photoFile && project.photoInformations?.photos) {
-            const photoInfo = project.photoInformations.photos.find(p => p.fileName === guid);
+            const photoInfo = project.photoInformations.photos.find((p) => p.fileName === guid);
             if (photoInfo) {
                 // Try different possible keys
-                photoFile = photos.get(photoInfo.fileName) || 
-                           photos.get(photoInfo.md5Hash) ||
-                           Array.from(photos.entries()).find(([k, v]) => k.includes(guid))?.[1];
+                photoFile =
+                    photos.get(photoInfo.fileName) ||
+                    photos.get(photoInfo.md5Hash) ||
+                    Array.from(photos.entries()).find(([k]) => k.includes(guid))?.[1];
             }
         }
-        
+
         if (!photoFile) {
             log(`Photo not found: ${guid}`);
             return;
         }
-        
+
         try {
             // Load the image
             const img = await this.loadImage(photoFile);
-            
+
             // Get rectangle
             const rect = obj.rectangle;
             const x = rect.x * scale;
             const y = rect.y * scale;
             const width = rect.width * scale;
             const height = rect.height * scale;
-            
+
             // Create a temporary canvas for transformations
             const tempCanvas = document.createElement('canvas');
             const tempCtx = this.configureCanvasContext(tempCanvas.getContext('2d'));
-            
+
             // Start with the original image
             let currentImg = img;
             let currentWidth = img.width;
             let currentHeight = img.height;
-            
+
             // Apply EXIF orientation if available
-            const photoInfo = project.photoInformations?.photos?.find(p => p.fileName === guid);
+            const photoInfo = project.photoInformations?.photos?.find((p) => p.fileName === guid);
             let rotationDegrees = 0;
-            
+
             if (photoInfo?.pictureOrientation) {
                 // PictureOrientation values: 0, 90, 180, 270
                 // We need to apply counter-rotation to fix orientation
                 switch (photoInfo.pictureOrientation) {
-                    case 90: rotationDegrees = -90; break;
-                    case 180: rotationDegrees = 180; break;
-                    case 270: rotationDegrees = 90; break;
+                    case 90:
+                        rotationDegrees = -90;
+                        break;
+                    case 180:
+                        rotationDegrees = 180;
+                        break;
+                    case 270:
+                        rotationDegrees = 90;
+                        break;
                 }
             }
-            
+
             // Apply orthogonal rotation from designer
             const orthoRot = foreground.processing?.orthogonalRotationOperation;
             if (orthoRot?.degree) {
                 rotationDegrees = (rotationDegrees + orthoRot.degree) % 360;
             }
-            
+
             // Apply rotation if needed
             if (rotationDegrees !== 0) {
                 const rotated = this.rotateImage(currentImg, rotationDegrees);
@@ -252,13 +325,13 @@ export class PageRenderer {
                 currentWidth = rotated.width;
                 currentHeight = rotated.height;
             }
-            
+
             // Apply mirror/flip
             if (foreground.isMirroredHorizontally || foreground.isMirroredVertically) {
                 tempCanvas.width = currentWidth;
                 tempCanvas.height = currentHeight;
                 tempCtx.save();
-                
+
                 if (foreground.isMirroredHorizontally) {
                     tempCtx.translate(currentWidth, 0);
                     tempCtx.scale(-1, 1);
@@ -267,13 +340,13 @@ export class PageRenderer {
                     tempCtx.translate(0, currentHeight);
                     tempCtx.scale(1, -1);
                 }
-                
+
                 tempCtx.drawImage(currentImg, 0, 0);
                 tempCtx.restore();
-                
+
                 currentImg = tempCanvas;
             }
-            
+
             // Apply visible rect operation (crop/zoom)
             const visRect = foreground.processing?.visibleRectOperation;
             let preLevelWidth = currentWidth;
@@ -300,7 +373,7 @@ export class PageRenderer {
             currentImg = cropped.canvas;
             currentWidth = cropped.width;
             currentHeight = cropped.height;
-            
+
             // Apply free rotation from object processing
             const rotOp = obj.processing?.rotationOperation;
             if (rotOp?.degree && Math.abs(rotOp.degree) > 0.01) {
@@ -309,47 +382,58 @@ export class PageRenderer {
                 currentWidth = rotated.width;
                 currentHeight = rotated.height;
             }
-            
+
             // Draw to main canvas
             ctx.save();
             ctx.globalAlpha = obj.foregroundOpacity || 1;
-            
+
             // Draw the image, scaling to fit the rectangle
             ctx.drawImage(currentImg, x, y, width, height);
-            
+
             ctx.restore();
-            
+
             log(`Drew image: ${guid}`);
         } catch (error) {
             log(`Error loading image ${guid}: ${error.message}`);
             console.error('Error loading image:', error);
         }
     }
-    
+
     rotateImage(img, degrees) {
-        const radians = degrees * Math.PI / 180;
+        const radians = (degrees * Math.PI) / 180;
         const sin = Math.abs(Math.sin(radians));
         const cos = Math.abs(Math.cos(radians));
-        
+
         const srcWidth = img.width || img.naturalWidth;
         const srcHeight = img.height || img.naturalHeight;
-        
+
         const newWidth = Math.round(srcWidth * cos + srcHeight * sin);
         const newHeight = Math.round(srcWidth * sin + srcHeight * cos);
-        
+
         const canvas = document.createElement('canvas');
         canvas.width = newWidth;
         canvas.height = newHeight;
-        
+
         const ctx = this.configureCanvasContext(canvas.getContext('2d'));
         ctx.translate(newWidth / 2, newHeight / 2);
         ctx.rotate(radians);
         ctx.drawImage(img, -srcWidth / 2, -srcHeight / 2);
-        
+
         return { canvas, width: newWidth, height: newHeight };
     }
-    
-    applyCrop(img, visRect, imgWidth, imgHeight, targetWidth, targetHeight, originalWidth = imgWidth, originalHeight = imgHeight, containerW_pu = 0, containerH_pu = 0) {
+
+    applyCrop(
+        img,
+        visRect,
+        imgWidth,
+        imgHeight,
+        targetWidth,
+        targetHeight,
+        originalWidth = imgWidth,
+        originalHeight = imgHeight,
+        containerW_pu = 0,
+        containerH_pu = 0
+    ) {
         const targetAspect = targetWidth / Math.max(targetHeight, 1);
         let cropWidth, cropHeight;
         const levelingAngle = Number(visRect?.levelingAngle) || 0;
@@ -369,7 +453,7 @@ export class PageRenderer {
             cropHeight = imgHeight;
 
             if (Math.abs(levelingAngle) > 0.01) {
-                const angleRad = Math.abs(levelingAngle) * Math.PI / 180;
+                const angleRad = (Math.abs(levelingAngle) * Math.PI) / 180;
                 const cosA = Math.cos(angleRad);
                 const sinA = Math.abs(Math.sin(angleRad));
 
@@ -410,11 +494,7 @@ export class PageRenderer {
         canvas.height = Math.max(1, Math.round(cropHeight));
 
         const ctx = this.configureCanvasContext(canvas.getContext('2d'));
-        ctx.drawImage(
-            img,
-            cropX, cropY, cropWidth, cropHeight,
-            0, 0, canvas.width, canvas.height
-        );
+        ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
 
         return { canvas, width: canvas.width, height: canvas.height };
     }
@@ -431,8 +511,9 @@ export class PageRenderer {
         const emptyRects = objects.filter((obj) => obj?.rectangle && !obj?.foreground);
         if (emptyRects.length !== objects.length) return false;
 
-        const coversFullHeight = emptyRects.every(({ rectangle }) =>
-            Math.abs(rectangle.y) < 1 && Math.abs(rectangle.height - pageHeight) < 1
+        const coversFullHeight = emptyRects.every(
+            ({ rectangle }) =>
+                Math.abs(rectangle.y) < 1 && Math.abs(rectangle.height - pageHeight) < 1
         );
         if (!coversFullHeight) return false;
 
@@ -475,7 +556,7 @@ export class PageRenderer {
 
         return renderOptions.legacyFallback ? renderOptions.backgroundColor : null;
     }
-    
+
     /**
      * Resolve a text file by id. Project may reference by path, GUID, or filename.
      */
@@ -495,53 +576,65 @@ export class PageRenderer {
         if (texts.size === 1) return texts.values().next().value;
         return null;
     }
-    
+
     async drawText(ctx, obj, page, project, texts, parser, scale, dpiScale, renderOptions, log) {
         const foreground = obj.foreground;
         if (!foreground) return;
-        
+
         const textId = foreground.textId;
         if (!textId) {
             console.warn('[drawText] No textId on object', obj);
             return;
         }
-        
+
         const textFile = this.getTextFile(texts, textId);
         if (!textFile) {
             log(`Text file not found: ${textId}`);
-            console.warn('[drawText] Text file not found:', textId, 'Loaded keys:', texts.size, Array.from(texts.keys()).slice(0, 5));
+            console.warn(
+                '[drawText] Text file not found:',
+                textId,
+                'Loaded keys:',
+                texts.size,
+                Array.from(texts.keys()).slice(0, 5)
+            );
             return;
         }
-        
+
         try {
             const buffer = await textFile.arrayBuffer();
             const textData = await parser.parseTextFile(buffer);
-            
+
             if (!textData.runs || textData.runs.length === 0) {
                 log(`No text content in: ${textId}`);
                 console.warn('[drawText] No runs in text file:', textId);
                 return;
             }
-            const textContent = textData.runs.map((run) => run.text || '').join('').trim();
-            console.log('[drawText] Drawing text', textId, 'runs:', textData.runs.length, 'rect:', obj.rectangle);
-            
+            console.log(
+                '[drawText] Drawing text',
+                textId,
+                'runs:',
+                textData.runs.length,
+                'rect:',
+                obj.rectangle
+            );
+
             // Get rectangle
             const rect = obj.rectangle;
             const x = rect.x * scale;
             const y = rect.y * scale;
             let width = Math.max(1, rect.width * scale);
             let height = Math.max(1, rect.height * scale);
-            
+
             // Get text style from object or use defaults
             const textStyle = obj.textStyle || {};
-            const verticalAlign = (foreground.verticalTextAlign || textStyle.verticalAlign || 'Top');
-            const horizontalAlign = (textStyle.horizontalAlign || textData.textAlignment || 'Left');
-            
+            const verticalAlign = foreground.verticalTextAlign || textStyle.verticalAlign || 'Top';
+            const horizontalAlign = textStyle.horizontalAlign || textData.textAlignment || 'Left';
+
             const textCanvas = document.createElement('canvas');
             textCanvas.width = Math.round(width);
             textCanvas.height = Math.round(height);
             const textCtx = this.configureCanvasContext(textCanvas.getContext('2d'));
-            
+
             const parseColor = (val) => {
                 if (!val || typeof val !== 'string') return null;
                 const s = val.trim();
@@ -557,7 +650,7 @@ export class PageRenderer {
                 const key = s.toLowerCase();
                 return named[key] !== undefined ? named[key] : s;
             };
-            
+
             const align = (horizontalAlign || 'Left').toLowerCase();
             const textScaleFactor = scale * dpiScale;
             const paragraphs = textData.paragraphs?.length
@@ -569,12 +662,20 @@ export class PageRenderer {
                 const text = rawText.replace(/\t/g, '    ');
                 if (!text) return null;
 
-                let fontSize = (run.fontSize ?? textStyle.fontSize ?? textData.defaultStyle?.fontSize ?? 12) * textScaleFactor;
+                let fontSize =
+                    (run.fontSize ?? textStyle.fontSize ?? textData.defaultStyle?.fontSize ?? 12) *
+                    textScaleFactor;
                 if (!Number.isFinite(fontSize) || fontSize < 1) fontSize = Math.max(scale, 1);
 
-                const fontFamily = (run.fontFamily || textStyle.fontName || textData.defaultStyle?.fontFamily || 'Arial').replace(/['"]/g, '');
-                const fontWeight = (run.fontWeight === 'Bold' || textStyle.bold) ? 'bold' : 'normal';
-                const fontStyle = (run.fontStyle === 'Italic' || textStyle.italic) ? 'italic' : 'normal';
+                const fontFamily = (
+                    run.fontFamily ||
+                    textStyle.fontName ||
+                    textData.defaultStyle?.fontFamily ||
+                    'Arial'
+                ).replace(/['"]/g, '');
+                const fontWeight = run.fontWeight === 'Bold' || textStyle.bold ? 'bold' : 'normal';
+                const fontStyle =
+                    run.fontStyle === 'Italic' || textStyle.italic ? 'italic' : 'normal';
 
                 let fillStyle = null;
                 if (renderOptions.fontColorMode === 'fixed') {
@@ -611,7 +712,11 @@ export class PageRenderer {
                     lines.push({
                         tokens: lineTokens,
                         width: lineWidth,
-                        height: lineHeight || ((textStyle.fontSize || textData.defaultStyle?.fontSize || 12) * textScaleFactor * 1.35),
+                        height:
+                            lineHeight ||
+                            (textStyle.fontSize || textData.defaultStyle?.fontSize || 12) *
+                                textScaleFactor *
+                                1.35,
                         textAlignment: (paragraph.textAlignment || align || 'left').toLowerCase()
                     });
                     lineTokens = [];
@@ -660,7 +765,12 @@ export class PageRenderer {
             textCtx.textBaseline = 'top';
             let currentY = 0;
             for (const line of lines) {
-                const lineAlign = (line.textAlignment || line.tokens[0]?.textAlignment || align || 'left').toLowerCase();
+                const lineAlign = (
+                    line.textAlignment ||
+                    line.tokens[0]?.textAlignment ||
+                    align ||
+                    'left'
+                ).toLowerCase();
                 let currentX = 0;
                 if (lineAlign === 'center') currentX = Math.max(0, (width - line.width) / 2);
                 else if (lineAlign === 'right') currentX = Math.max(0, width - line.width);
@@ -673,7 +783,7 @@ export class PageRenderer {
                 }
                 currentY += line.height;
             }
-            
+
             let destY = y;
             const textHeight = currentY;
             const vAlign = (verticalAlign || 'Top').toLowerCase();
@@ -691,69 +801,73 @@ export class PageRenderer {
                 const centerX = x + width / 2;
                 const centerY = y + height / 2;
                 ctx.translate(centerX, centerY);
-                ctx.rotate(rotOp.degree * Math.PI / 180);
+                ctx.rotate((rotOp.degree * Math.PI) / 180);
                 ctx.translate(-centerX, -centerY);
             }
-            
+
             // Draw text canvas to main canvas
             ctx.drawImage(textCanvas, x, destY);
-            
+
             ctx.restore();
-            
+
             log(`Drew text: ${textId}`);
-            console.log('[drawText] Drew text at', Math.round(x), Math.round(destY), 'size', Math.round(width), 'x', Math.round(height));
+            console.log(
+                '[drawText] Drew text at',
+                Math.round(x),
+                Math.round(destY),
+                'size',
+                Math.round(width),
+                'x',
+                Math.round(height)
+            );
         } catch (error) {
             log(`Error drawing text ${textId}: ${error.message}`);
             console.error('Error drawing text:', error);
         }
     }
-    
+
     drawColorContent(ctx, obj, scale, renderOptions, log) {
         const foreground = obj.foreground;
         if (!foreground?.color) return;
         if (renderOptions.backgroundMode === 'transparent') return;
-        
+
         const color = foreground.color;
         const rect = obj.rectangle;
-        const fillStyle = renderOptions.backgroundMode === 'fixed'
-            ? renderOptions.backgroundColor
-            : `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
-        
+        const fillStyle =
+            renderOptions.backgroundMode === 'fixed'
+                ? renderOptions.backgroundColor
+                : `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+
         ctx.save();
         ctx.globalAlpha = obj.foregroundOpacity || 1;
         ctx.fillStyle = fillStyle;
-        ctx.fillRect(
-            rect.x * scale,
-            rect.y * scale,
-            rect.width * scale,
-            rect.height * scale
-        );
+        ctx.fillRect(rect.x * scale, rect.y * scale, rect.width * scale, rect.height * scale);
         ctx.restore();
-        
+
         log(`Drew color fill`);
     }
-    
+
     async loadImage(file) {
         // Check cache first
         const cacheKey = file.name + file.size;
         if (this.imageCache.has(cacheKey)) {
             return this.imageCache.get(cacheKey);
         }
-        
+
         return new Promise((resolve, reject) => {
             const img = new Image();
-            
+
             img.onload = () => {
                 this.imageCache.set(cacheKey, img);
                 URL.revokeObjectURL(img.src);
                 resolve(img);
             };
-            
+
             img.onerror = () => {
                 URL.revokeObjectURL(img.src);
                 reject(new Error(`Failed to load image: ${file.name}`));
             };
-            
+
             img.src = URL.createObjectURL(file);
         });
     }

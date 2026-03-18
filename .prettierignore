@@ -1,0 +1,7 @@
+node_modules
+package-lock.json
+vendor/*.min.js
+vendor/jspdf.umd.min.js
+tests/output
+test-results
+tests/fixtures/**/*.png

@@ -1,6 +1,6 @@
 /**
  * IFolor File Parser
- * 
+ *
  * Handles parsing of iFolor photobook files:
  * - Project.ipp (23-byte header + gzip XML)
  * - Text files (23-byte header + gzip ZIP containing XAML)
@@ -10,7 +10,7 @@ export class IFolorParser {
     constructor() {
         this.GZIP_OFFSET = 23;
     }
-    
+
     /**
      * Parse a Project.ipp file
      * @param {ArrayBuffer} buffer - The file contents
@@ -21,19 +21,19 @@ export class IFolorParser {
         const gzipData = new Uint8Array(buffer, this.GZIP_OFFSET);
         const xmlData = pako.inflate(gzipData);
         const xmlString = new TextDecoder().decode(xmlData);
-        
+
         // Parse XML
         const parser = new DOMParser();
         const doc = parser.parseFromString(xmlString, 'text/xml');
-        
+
         // Check for parse errors
         const parseError = doc.querySelector('parsererror');
         if (parseError) {
             throw new Error('Invalid XML in project file');
         }
-        
+
         const root = doc.documentElement;
-        
+
         return {
             designCenterVersion: root.getAttribute('designCenterVersion'),
             version: root.getAttribute('version'),
@@ -46,7 +46,7 @@ export class IFolorParser {
             pages: this.parsePages(root.querySelector('Pages'))
         };
     }
-    
+
     /**
      * Parse a text file containing XAML
      * @param {ArrayBuffer} buffer - The file contents
@@ -57,19 +57,19 @@ export class IFolorParser {
             // Skip the 23-byte header and decompress the gzip
             const gzipData = new Uint8Array(buffer, this.GZIP_OFFSET);
             const zipData = pako.inflate(gzipData);
-            
+
             const zip = await JSZip.loadAsync(zipData);
-            
+
             // Find XAML: try known path then any .xaml file
             let xamlFile = zip.file('Xaml/Document.xaml') || zip.file('Document.xaml');
             if (!xamlFile && zip.files) {
-                const xamlName = Object.keys(zip.files).find(n => n.endsWith('.xaml'));
+                const xamlName = Object.keys(zip.files).find((n) => n.endsWith('.xaml'));
                 if (xamlName) xamlFile = zip.file(xamlName);
             }
             if (!xamlFile) {
                 throw new Error('No XAML found in text file');
             }
-            
+
             const xamlString = await xamlFile.async('string');
             return this.parseXaml(xamlString);
         } catch (error) {
@@ -77,7 +77,7 @@ export class IFolorParser {
             return { runs: [], textAlignment: 'Left' };
         }
     }
-    
+
     /**
      * Parse XAML FlowDocument content
      * @param {string} xamlString - The XAML content
@@ -87,13 +87,15 @@ export class IFolorParser {
         const parser = new DOMParser();
         const doc = parser.parseFromString(xamlString, 'text/xml');
         const root = doc.documentElement;
-        
+
         const getAttr = (el, name, fallback) => {
             if (!el) return fallback;
-            const v = el.getAttribute(name) || el.getAttribute(name.charAt(0).toLowerCase() + name.slice(1));
+            const v =
+                el.getAttribute(name) ||
+                el.getAttribute(name.charAt(0).toLowerCase() + name.slice(1));
             return v !== null && v !== undefined ? v : fallback;
         };
-        
+
         const defaultStyle = {
             fontFamily: getAttr(root, 'FontFamily', 'Arial'),
             fontSize: parseFloat(getAttr(root, 'FontSize', '12')) || 12,
@@ -106,7 +108,9 @@ export class IFolorParser {
 
         const createStyle = (element, fallback = defaultStyle) => ({
             fontFamily: getAttr(element, 'FontFamily', fallback.fontFamily),
-            fontSize: parseFloat(getAttr(element, 'FontSize', String(fallback.fontSize))) || fallback.fontSize,
+            fontSize:
+                parseFloat(getAttr(element, 'FontSize', String(fallback.fontSize))) ||
+                fallback.fontSize,
             fontWeight: getAttr(element, 'FontWeight', fallback.fontWeight),
             fontStyle: getAttr(element, 'FontStyle', fallback.fontStyle),
             foreground: getAttr(element, 'Foreground', fallback.foreground),
@@ -154,12 +158,18 @@ export class IFolorParser {
             .map((paragraph) => {
                 const runs = [];
                 collectSegments(paragraph, defaultStyle, runs);
-                const textAlignment = getAttr(paragraph, 'TextAlignment', defaultStyle.textAlignment);
+                const textAlignment = getAttr(
+                    paragraph,
+                    'TextAlignment',
+                    defaultStyle.textAlignment
+                );
                 return { runs, textAlignment };
             })
             .filter((paragraph) => paragraph.runs.some((run) => run.text && run.text !== '\n'));
 
-        const runs = structuredParagraphs.flatMap((paragraph) => paragraph.runs.filter((run) => run.text !== '\n'));
+        const runs = structuredParagraphs.flatMap((paragraph) =>
+            paragraph.runs.filter((run) => run.text !== '\n')
+        );
         if (runs.length === 0) {
             const text = root.textContent || '';
             if (text.trim()) runs.push({ text, ...defaultStyle });
@@ -172,7 +182,7 @@ export class IFolorParser {
             textAlignment: defaultStyle.textAlignment
         };
     }
-    
+
     parseProjectCare(element) {
         if (!element) return null;
         return {
@@ -181,13 +191,13 @@ export class IFolorParser {
             imageOrientationAdjusted: element.getAttribute('imageOrientationAdjusted') === '1'
         };
     }
-    
+
     parsePhotoInformations(element) {
         if (!element) return { photos: [] };
-        
+
         const photos = [];
         const photoElements = element.querySelectorAll('PhotoInformation');
-        
+
         for (const photo of photoElements) {
             photos.push({
                 fileName: this.getTextContent(photo, 'FileName'),
@@ -197,26 +207,26 @@ export class IFolorParser {
                 pictureOrientation: parseInt(photo.getAttribute('pictureOrientation') || '0', 10)
             });
         }
-        
+
         return { photos };
     }
-    
+
     parsePages(element) {
         if (!element) return [];
-        
+
         const pages = [];
         const pageElements = element.querySelectorAll('IfolorPage');
-        
+
         for (const page of pageElements) {
             pages.push(this.parsePage(page));
         }
-        
+
         return pages;
     }
-    
+
     parsePage(element) {
         if (!element) return null;
-        
+
         return {
             pageDescription: this.parsePageDescription(element.querySelector('PageDescription')),
             pageBackground: this.parsePageBackground(element.querySelector('PageBackground')),
@@ -224,23 +234,26 @@ export class IFolorParser {
             pageLayers: this.parsePageLayers(element.querySelector('PageLayers'))
         };
     }
-    
+
     parsePageDescription(element) {
         if (!element) return null;
-        
+
         return {
             width: parseInt(element.getAttribute('width') || '0', 10),
             height: parseInt(element.getAttribute('height') || '0', 10),
             dpi: parseInt(element.getAttribute('dpi') || '300', 10),
             arrangement: element.getAttribute('arrangement'),
             firstSidePageNumber: parseInt(element.getAttribute('firstSidePageNumber') || '-1', 10),
-            secondSidePageNumber: parseInt(element.getAttribute('secondSidePageNumber') || '-1', 10),
+            secondSidePageNumber: parseInt(
+                element.getAttribute('secondSidePageNumber') || '-1',
+                10
+            ),
             hasPageNumbers: element.getAttribute('hasPageNumbers') === '1',
             pageSpine: this.parsePageSpine(element.querySelector('PageSpine')),
             pageCutting: this.parsePageCutting(element.querySelector('PageCutting'))
         };
     }
-    
+
     parsePageSpine(element) {
         if (!element) return null;
         return {
@@ -249,7 +262,7 @@ export class IFolorParser {
             pos2: parseInt(element.getAttribute('pos2') || '0', 10)
         };
     }
-    
+
     parsePageCutting(element) {
         if (!element) return null;
         const rect = element.querySelector('Rectangle');
@@ -258,23 +271,23 @@ export class IFolorParser {
             rectangle: rect ? this.parseRectangle(rect) : null
         };
     }
-    
+
     parsePageBackground(element) {
         if (!element) return null;
-        
+
         return {
             order: parseInt(element.getAttribute('order') || '0', 10),
             acceptsNewPageObjects: element.getAttribute('acceptsNewPageObjects') === '1',
             pageObjects: this.parsePageObjects(element.querySelector('PageObjects'))
         };
     }
-    
+
     parsePageLayers(element) {
         if (!element) return [];
-        
+
         const layers = [];
         const layerElements = element.querySelectorAll('PageLayer');
-        
+
         for (const layer of layerElements) {
             layers.push({
                 order: parseInt(layer.getAttribute('order') || '0', 10),
@@ -282,28 +295,28 @@ export class IFolorParser {
                 pageObjects: this.parsePageObjects(layer.querySelector('PageObjects'))
             });
         }
-        
+
         return layers;
     }
-    
+
     parsePageObjects(element) {
         if (!element) return [];
-        
+
         const objects = [];
         const objElements = element.querySelectorAll(':scope > PageObject');
-        
+
         for (const obj of objElements) {
             objects.push(this.parsePageObject(obj));
         }
-        
+
         return objects;
     }
-    
+
     parsePageObject(element) {
         if (!element) return null;
-        
+
         const foreground = element.querySelector('Foreground');
-        
+
         return {
             id: element.getAttribute('id'),
             role: element.getAttribute('role'),
@@ -319,15 +332,15 @@ export class IFolorParser {
             processing: this.parseProcessing(element.querySelector('Processing'))
         };
     }
-    
+
     parseForeground(element) {
         if (!element) return null;
-        
+
         // Check for nested content types (2021 format)
         const imageContent = element.querySelector('PageObjectImageContent');
         const textContent = element.querySelector('PageObjectTextContent');
         const colorContent = element.querySelector('PageObjectColorContent');
-        
+
         if (imageContent) {
             return {
                 type: 'image',
@@ -335,7 +348,10 @@ export class IFolorParser {
                 imageType: imageContent.getAttribute('imageType'),
                 imageQuality: imageContent.getAttribute('imageQuality'),
                 imagePixelWidth: parseInt(imageContent.getAttribute('imagePixelWidth') || '0', 10),
-                imagePixelHeight: parseInt(imageContent.getAttribute('imagePixelHeight') || '0', 10),
+                imagePixelHeight: parseInt(
+                    imageContent.getAttribute('imagePixelHeight') || '0',
+                    10
+                ),
                 isColorized: imageContent.getAttribute('isColorized') === '1',
                 isMirroredHorizontally: imageContent.getAttribute('isMirroredHorizontally') === '1',
                 isMirroredVertically: imageContent.getAttribute('isMirroredVertically') === '1',
@@ -343,18 +359,20 @@ export class IFolorParser {
                 processing: this.parseProcessing(imageContent.querySelector('Processing'))
             };
         }
-        
+
         if (textContent) {
             return {
                 type: 'text',
                 textId: this.getTextId(textContent),
-                verticalTextAlign: textContent.getAttribute('verticalTextAlign') || textContent.getAttribute('VerticalTextAlign'),
+                verticalTextAlign:
+                    textContent.getAttribute('verticalTextAlign') ||
+                    textContent.getAttribute('VerticalTextAlign'),
                 isColorized: textContent.getAttribute('isColorized') === '1',
                 margin: this.parseMargin(textContent.querySelector('Margin')),
                 usedFonts: this.parseUsedFonts(textContent.querySelector('UsedFonts'))
             };
         }
-        
+
         if (colorContent) {
             return {
                 type: 'color',
@@ -363,12 +381,12 @@ export class IFolorParser {
                 colorType: colorContent.getAttribute('type')
             };
         }
-        
+
         // Legacy format - attributes directly on Foreground
         const contentType = element.getAttribute('contentType');
         const id = this.getTextContent(element, 'Id');
         const textId = this.getTextId(element);
-        
+
         if (contentType === 'PageObjectImageContent' || id) {
             return {
                 type: 'image',
@@ -382,7 +400,7 @@ export class IFolorParser {
                 processing: this.parseProcessing(element.querySelector('Processing'))
             };
         }
-        
+
         if (contentType === 'PageObjectTextContent' || textId) {
             return {
                 type: 'text',
@@ -392,13 +410,13 @@ export class IFolorParser {
                 margin: this.parseMargin(element.querySelector('Margin'))
             };
         }
-        
+
         return null;
     }
-    
+
     parseTextStyle(element) {
         if (!element) return null;
-        
+
         return {
             fontName: element.getAttribute('fontName'),
             fontSize: parseInt(element.getAttribute('fontSize') || '12', 10),
@@ -410,10 +428,10 @@ export class IFolorParser {
             color: this.parseColor(element.querySelector('Color'))
         };
     }
-    
+
     parseColor(element) {
         if (!element) return null;
-        
+
         return {
             a: parseInt(element.getAttribute('colorA') || '255', 10),
             r: parseInt(element.getAttribute('colorR') || '0', 10),
@@ -421,10 +439,10 @@ export class IFolorParser {
             b: parseInt(element.getAttribute('colorB') || '0', 10)
         };
     }
-    
+
     parseMargin(element) {
         if (!element) return { left: 0, top: 0, right: 0, bottom: 0 };
-        
+
         return {
             left: parseFloat(element.getAttribute('left') || '0'),
             top: parseFloat(element.getAttribute('top') || '0'),
@@ -432,26 +450,26 @@ export class IFolorParser {
             bottom: parseFloat(element.getAttribute('bottom') || '0')
         };
     }
-    
+
     parseUsedFonts(element) {
         if (!element) return [];
-        
+
         const fonts = [];
         const fontElements = element.querySelectorAll('UsedFont');
-        
+
         for (const font of fontElements) {
             fonts.push({
                 familyName: font.getAttribute('familyName'),
                 style: font.getAttribute('style')
             });
         }
-        
+
         return fonts;
     }
-    
+
     parseRectangle(element) {
         if (!element) return { x: 0, y: 0, width: 0, height: 0 };
-        
+
         return {
             x: parseFloat(element.getAttribute('x') || '0'),
             y: parseFloat(element.getAttribute('y') || '0'),
@@ -459,44 +477,56 @@ export class IFolorParser {
             height: parseFloat(element.getAttribute('height') || '0')
         };
     }
-    
+
     parseProcessing(element) {
         if (!element) return null;
-        
+
         const toApply = element.querySelector('ToApply');
         if (!toApply) return null;
-        
+
         return {
-            rotationOperation: this.parseRotationOperation(toApply.querySelector('RotationOperation')),
-            orthogonalRotationOperation: this.parseOrthogonalRotation(toApply.querySelector('OrthogonalRotationOperation')),
-            visibleRectOperation: this.parseVisibleRectOperation(toApply.querySelector('VisibleRectOperation'))
+            rotationOperation: this.parseRotationOperation(
+                toApply.querySelector('RotationOperation')
+            ),
+            orthogonalRotationOperation: this.parseOrthogonalRotation(
+                toApply.querySelector('OrthogonalRotationOperation')
+            ),
+            visibleRectOperation: this.parseVisibleRectOperation(
+                toApply.querySelector('VisibleRectOperation')
+            )
         };
     }
-    
+
     parseRotationOperation(element) {
         if (!element) return null;
         return {
             degree: parseFloat(element.getAttribute('degree') || '0')
         };
     }
-    
+
     parseOrthogonalRotation(element) {
         if (!element) return null;
         const rotation = element.getAttribute('rotation');
         let degree = 0;
-        
+
         switch (rotation) {
-            case 'Rotate90': degree = 90; break;
-            case 'Rotate180': degree = 180; break;
-            case 'Rotate270': degree = 270; break;
+            case 'Rotate90':
+                degree = 90;
+                break;
+            case 'Rotate180':
+                degree = 180;
+                break;
+            case 'Rotate270':
+                degree = 270;
+                break;
         }
-        
+
         return { rotation, degree };
     }
-    
+
     parseVisibleRectOperation(element) {
         if (!element) return null;
-        
+
         return {
             x: parseFloat(element.getAttribute('x') || '0'),
             y: parseFloat(element.getAttribute('y') || '0'),
@@ -504,16 +534,19 @@ export class IFolorParser {
             levelingAngle: parseFloat(element.getAttribute('levelingAngle') || '0')
         };
     }
-    
+
     getTextContent(parent, tagName) {
         const element = parent.querySelector(tagName);
         return element ? element.textContent.trim() : '';
     }
-    
+
     /** Get textId from element: attribute (any casing) or child element. */
     getTextId(element) {
         if (!element) return null;
-        const attr = element.getAttribute('textId') || element.getAttribute('TextId') || element.getAttribute('documentId');
+        const attr =
+            element.getAttribute('textId') ||
+            element.getAttribute('TextId') ||
+            element.getAttribute('documentId');
         if (attr) return attr;
         const tagNames = ['textId', 'TextId', 'documentId', 'DocumentId'];
         for (const tag of tagNames) {

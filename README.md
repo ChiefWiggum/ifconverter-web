@@ -38,21 +38,21 @@ Then open http://localhost:8080 in your browser.
 ## Usage
 
 1. **Load your photobook** - Either:
-   - Drag and drop your entire photobook folder onto the drop zone
-   - Use the file buttons to select `Project.ipp`, Photos, and Texts separately
+    - Drag and drop your entire photobook folder onto the drop zone
+    - Use the file buttons to select `Project.ipp`, Photos, and Texts separately
 
 2. **Configure options** (optional):
-   - **Output DPI**: Quality of rendered images (72-600)
-   - **Background Color**: Override the page background
-   - **Preview Scale**: Reduce preview size for faster rendering
+    - **Output DPI**: Quality of rendered images (72-600)
+    - **Background Color**: Override the page background
+    - **Preview Scale**: Reduce preview size for faster rendering
 
 3. **Render pages**:
-   - Click "Render All Pages" to generate PNG images
-   - Each page will appear in a card with a download button
+    - Click "Render All Pages" to generate PNG images
+    - Each page will appear in a card with a download button
 
 4. **Export**:
-   - Download individual pages using the button on each card
-   - Or click "Download All as ZIP" to get everything at once
+    - Download individual pages using the button on each card
+    - Or click "Download All as ZIP" to get everything at once
 
 ## Photobook Folder Structure
 
@@ -73,12 +73,12 @@ PhotobookFolder/
 
 ## Browser Compatibility
 
-| Browser | Support |
-|---------|---------|
-| Chrome 80+ | ✅ Full support |
-| Firefox 75+ | ✅ Full support |
-| Edge 80+ | ✅ Full support |
-| Safari 14+ | ✅ Full support |
+| Browser           | Support          |
+| ----------------- | ---------------- |
+| Chrome 80+        | ✅ Full support  |
+| Firefox 75+       | ✅ Full support  |
+| Edge 80+          | ✅ Full support  |
+| Safari 14+        | ✅ Full support  |
 | Internet Explorer | ❌ Not supported |
 
 ## Technical Details
@@ -102,7 +102,7 @@ PhotobookFolder/
 
 ## Privacy
 
-**Your files are 100% private.** 
+**Your files are 100% private.**
 
 All processing happens entirely in your browser using JavaScript. No files are uploaded to any server. This application works completely offline after the initial page load.
 

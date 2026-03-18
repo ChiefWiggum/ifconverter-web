@@ -1,6 +1,6 @@
 /**
  * IFConverter Web - Browser-based iFolor Photobook Converter
- * 
+ *
  * Converts iFolor photobooks to PNG images entirely in the browser.
  */
 
@@ -13,26 +13,26 @@ class IFConverterApp {
         this.parser = new IFolorParser();
         this.renderer = new PageRenderer();
         this.logger = new Logger('logContent');
-        
+
         this.project = null;
         this.photos = new Map();
         this.texts = new Map();
         this.renderedPages = [];
         this.lastRenderedIndices = [];
-        
+
         this.initElements();
         this.initEventListeners();
     }
-    
+
     initElements() {
         // Drop zone
         this.dropZone = document.getElementById('dropZone');
-        
+
         // File inputs
         this.ippFileInput = document.getElementById('ippFile');
         this.photosInput = document.getElementById('photosInput');
         this.textsInput = document.getElementById('textsInput');
-        
+
         // Options
         this.optionsPanel = document.getElementById('optionsPanel');
         this.dpiSelect = document.getElementById('dpiSelect');
@@ -42,7 +42,7 @@ class IFConverterApp {
         this.fontColorModeSelect = document.getElementById('fontColorModeSelect');
         this.fontColorInput = document.getElementById('fontColorInput');
         this.scaleSelect = document.getElementById('scaleSelect');
-        
+
         // Status and info
         this.statusEl = document.getElementById('status');
         this.projectInfo = document.getElementById('projectInfo');
@@ -50,55 +50,55 @@ class IFConverterApp {
         this.progressText = document.getElementById('progressText');
         this.progressFill = document.getElementById('progressFill');
         this.logEl = document.getElementById('log');
-        
+
         // Buttons
         this.renderBtn = document.getElementById('renderBtn');
         this.renderSomeBtn = document.getElementById('renderSomeBtn');
         this.downloadAllBtn = document.getElementById('downloadAllBtn');
         this.clearLogBtn = document.getElementById('clearLogBtn');
-        
+
         // Pages container
         this.pagesContainer = document.getElementById('pagesContainer');
     }
-    
+
     initEventListeners() {
         // Drag and drop
         this.dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             this.dropZone.classList.add('drag-over');
         });
-        
+
         this.dropZone.addEventListener('dragleave', () => {
             this.dropZone.classList.remove('drag-over');
         });
-        
+
         this.dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             this.dropZone.classList.remove('drag-over');
             this.handleDrop(e.dataTransfer);
         });
-        
+
         // File inputs
         this.ippFileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 this.loadProjectFile(e.target.files[0]);
             }
         });
-        
+
         this.photosInput.addEventListener('change', (e) => {
             this.loadPhotos(e.target.files);
         });
-        
+
         this.textsInput.addEventListener('change', (e) => {
             this.loadTexts(e.target.files);
         });
-        
+
         // Buttons
         this.renderBtn.addEventListener('click', () => this.renderAllPages());
         this.renderSomeBtn.addEventListener('click', () => this.openPageSelectModal());
         this.downloadAllBtn.addEventListener('click', () => this.downloadAllAsZip());
         this.clearLogBtn.addEventListener('click', () => this.logger.clear());
-        
+
         // Options change
         this.scaleSelect.addEventListener('change', () => {
             this.rerenderCurrentSelection();
@@ -118,7 +118,9 @@ class IFConverterApp {
 
     updateOptionControlState() {
         const format = this.outputFormatSelect?.value || 'png';
-        const transparentOption = this.backgroundModeSelect?.querySelector('option[value="transparent"]');
+        const transparentOption = this.backgroundModeSelect?.querySelector(
+            'option[value="transparent"]'
+        );
         if (transparentOption) {
             transparentOption.disabled = format === 'jpg';
         }
@@ -163,10 +165,10 @@ class IFConverterApp {
             this.renderSelectedPages(this.lastRenderedIndices);
         }
     }
-    
+
     async handleDrop(dataTransfer) {
         const items = dataTransfer.items;
-        
+
         for (const item of items) {
             if (item.kind === 'file') {
                 const entry = item.webkitGetAsEntry?.();
@@ -185,15 +187,15 @@ class IFConverterApp {
                 }
             }
         }
-        
+
         this.checkReadyState();
     }
-    
+
     async processDirectory(dirEntry) {
         this.logger.info(`Processing directory: ${dirEntry.name}`);
-        
+
         const entries = await this.readDirectoryEntries(dirEntry);
-        
+
         for (const entry of entries) {
             if (entry.isFile) {
                 const file = await this.getFileFromEntry(entry);
@@ -206,12 +208,12 @@ class IFConverterApp {
             }
         }
     }
-    
+
     readDirectoryEntries(dirEntry) {
         return new Promise((resolve) => {
             const reader = dirEntry.createReader();
             const entries = [];
-            
+
             const readBatch = () => {
                 reader.readEntries((batch) => {
                     if (batch.length === 0) {
@@ -222,20 +224,20 @@ class IFConverterApp {
                     }
                 });
             };
-            
+
             readBatch();
         });
     }
-    
+
     getFileFromEntry(fileEntry) {
         return new Promise((resolve, reject) => {
             fileEntry.file(resolve, reject);
         });
     }
-    
+
     async processDroppedFile(file, fullPath = '') {
         const path = fullPath || file.name;
-        
+
         if (file.name === 'Project.ipp' || file.name.endsWith('.ipp')) {
             await this.loadProjectFile(file);
         } else if (path.includes('/Photos/') || path.includes('\\Photos\\')) {
@@ -250,29 +252,29 @@ class IFConverterApp {
             this.logger.info(`Loaded photo: ${file.name}`);
         }
     }
-    
+
     isImageFile(filename) {
         const ext = filename.toLowerCase().split('.').pop();
         return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
     }
-    
+
     async loadProjectFile(file) {
         try {
             this.showStatus('Loading project file...', 'info');
             this.logger.info(`Loading project: ${file.name}`);
-            
+
             const arrayBuffer = await file.arrayBuffer();
             this.project = await this.parser.parseProject(arrayBuffer);
-            
+
             this.displayProjectInfo();
             this.showStatus('Project loaded successfully!', 'success');
             this.logger.success(`Project loaded: ${this.project.projectId}`);
-            
+
             this.optionsPanel.classList.add('visible');
             this.projectInfo.classList.add('visible');
             this.logEl.classList.add('visible');
             this.updateOptionControlState();
-            
+
             this.checkReadyState();
         } catch (error) {
             this.showStatus(`Error loading project: ${error.message}`, 'error');
@@ -280,7 +282,7 @@ class IFConverterApp {
             console.error(error);
         }
     }
-    
+
     loadPhotos(files) {
         for (const file of files) {
             this.photos.set(file.name, file);
@@ -289,7 +291,7 @@ class IFConverterApp {
         this.showStatus(`Loaded ${files.length} photos`, 'success');
         this.checkReadyState();
     }
-    
+
     loadTexts(files) {
         this.texts.clear();
         let i = 0;
@@ -302,7 +304,7 @@ class IFConverterApp {
         this.showStatus(`Loaded ${files.length} text files`, 'success');
         this.checkReadyState();
     }
-    
+
     countReferencedPhotosAndTexts(project) {
         const photoIds = new Set();
         const textIds = new Set();
@@ -326,15 +328,15 @@ class IFConverterApp {
         if (project?.pages) for (const page of project.pages) forPage(page);
         return { photoRefs: photoIds.size, textRefs: textIds.size };
     }
-    
+
     displayProjectInfo() {
         if (!this.project) return;
-        
+
         const totalPages = 1 + (this.project.pages?.length || 0);
         const { photoRefs, textRefs } = this.countReferencedPhotosAndTexts(this.project);
         const photosLabel = `${this.photos.size} (${photoRefs} referenced in book)`;
         const textsLabel = `${this.texts.size} (${textRefs} referenced in book)`;
-        
+
         this.projectDetails.innerHTML = `
             <dt>Project ID</dt>
             <dd>${this.project.projectId || 'N/A'}</dd>
@@ -354,22 +356,22 @@ class IFConverterApp {
             <dd>${textsLabel}</dd>
         `;
     }
-    
+
     checkReadyState() {
         const hasProject = this.project !== null;
         const hasPhotos = this.photos.size > 0;
-        
+
         this.renderBtn.disabled = !hasProject;
         this.renderSomeBtn.disabled = !hasProject;
         this.displayProjectInfo();
-        
+
         if (hasProject && hasPhotos) {
             this.logger.success('Ready to render! Click "Render All Pages" to start.');
         } else if (hasProject && !hasPhotos) {
             this.logger.warning('Project loaded but no photos. Add photos for complete rendering.');
         }
     }
-    
+
     getPageList() {
         const list = [];
         if (this.project?.cover) {
@@ -381,28 +383,32 @@ class IFConverterApp {
                 const pageNum2 = page.pageDescription?.secondSidePageNumber;
                 let name = `Page ${i + 1}`;
                 if (pageNum > 0 || pageNum2 > 0) {
-                    name = pageNum > 0 && pageNum2 > 0 
-                        ? `Pages ${pageNum}-${pageNum2}`
-                        : `Page ${pageNum > 0 ? pageNum : pageNum2}`;
+                    name =
+                        pageNum > 0 && pageNum2 > 0
+                            ? `Pages ${pageNum}-${pageNum2}`
+                            : `Page ${pageNum > 0 ? pageNum : pageNum2}`;
                 }
                 list.push({ page, name, index: i + 1 });
             });
         }
         return list;
     }
-    
+
     openPageSelectModal() {
         const allPages = this.getPageList();
         if (allPages.length === 0) {
             this.showStatus('No pages in project', 'error');
             return;
         }
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'lightbox-overlay page-select-overlay';
-        const listHtml = allPages.map((p, i) =>
-            `<label class="page-select-item"><input type="checkbox" data-index="${i}" checked> ${p.name}</label>`
-        ).join('');
+        const listHtml = allPages
+            .map(
+                (p, i) =>
+                    `<label class="page-select-item"><input type="checkbox" data-index="${i}" checked> ${p.name}</label>`
+            )
+            .join('');
         overlay.innerHTML = `
             <div class="lightbox-backdrop"></div>
             <div class="lightbox-content page-select-modal">
@@ -423,30 +429,34 @@ class IFConverterApp {
                 </div>
             </div>
         `;
-        
+
         const listEl = overlay.querySelector('.page-select-list');
         const close = () => {
             overlay.remove();
             document.body.style.overflow = '';
         };
-        
+
         overlay.querySelector('.lightbox-backdrop').addEventListener('click', close);
         overlay.querySelector('.lightbox-close').addEventListener('click', close);
         overlay.querySelector('.page-select-cancel').addEventListener('click', close);
         overlay.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') close();
         });
-        
+
         overlay.querySelector('.page-select-all').addEventListener('click', () => {
-            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+            listEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+                cb.checked = true;
+            });
         });
         overlay.querySelector('.page-select-none').addEventListener('click', () => {
-            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+            listEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+                cb.checked = false;
+            });
         });
-        
+
         overlay.querySelector('.page-select-render').addEventListener('click', () => {
             const indices = [...listEl.querySelectorAll('input[type="checkbox"]:checked')]
-                .map(cb => parseInt(cb.dataset.index, 10))
+                .map((cb) => parseInt(cb.dataset.index, 10))
                 .sort((a, b) => a - b);
             close();
             if (indices.length > 0) {
@@ -455,36 +465,36 @@ class IFConverterApp {
                 this.showStatus('Select at least one page', 'warning');
             }
         });
-        
+
         document.body.style.overflow = 'hidden';
         document.body.appendChild(overlay);
         overlay.querySelector('.lightbox-close').focus();
     }
-    
+
     async renderSelectedPages(indices) {
         if (!this.project) return;
-        
+
         const allPages = this.getPageList();
         this.allPages = allPages;
         this.lastRenderedIndices = [...indices];
-        
+
         this.renderBtn.disabled = true;
         this.renderSomeBtn.disabled = true;
         this.downloadAllBtn.disabled = true;
         this.pagesContainer.innerHTML = '';
         this.renderedPages = [];
-        
+
         const scale = parseFloat(this.scaleSelect.value);
         const renderOptions = this.getRenderOptions();
         const total = indices.length;
-        
+
         for (let k = 0; k < indices.length; k++) {
             const i = indices[k];
             const { page, name } = allPages[i];
-            
+
             this.updateProgress(k, total, `Rendering ${name}...`);
             this.logger.info(`Rendering ${name}...`);
-            
+
             try {
                 const canvas = await this.renderer.renderPage(
                     page,
@@ -504,14 +514,14 @@ class IFConverterApp {
                 console.error(error);
             }
         }
-        
+
         this.updateProgress(total, total, 'Complete!');
         this.renderBtn.disabled = false;
         this.renderSomeBtn.disabled = false;
         this.downloadAllBtn.disabled = this.renderedPages.length === 0;
         this.showStatus(`Rendered ${this.renderedPages.length} pages`, 'success');
     }
-    
+
     async renderAllPages() {
         if (!this.project) {
             this.showStatus('No project loaded', 'error');
@@ -520,13 +530,13 @@ class IFConverterApp {
         const allPages = this.getPageList();
         await this.renderSelectedPages(allPages.map((_, index) => index));
     }
-    
+
     addPageCard(name, canvas, pageIndex) {
         const card = document.createElement('div');
         card.className = 'page-card';
-        
+
         const dims = `${canvas.width} × ${canvas.height}`;
-        
+
         card.innerHTML = `
             <h4>${name} <span>${dims}</span></h4>
             <div class="page-canvas-wrapper" role="button" tabindex="0" title="Click to view full screen"></div>
@@ -534,10 +544,10 @@ class IFConverterApp {
                 <button class="btn btn-primary btn-download">Download ${this.getOutputLabel()}</button>
             </div>
         `;
-        
+
         const wrapper = card.querySelector('.page-canvas-wrapper');
         wrapper.appendChild(canvas);
-        
+
         wrapper.addEventListener('click', (e) => {
             if (!e.target.closest('.btn-download')) this.openLightbox(pageIndex);
         });
@@ -547,21 +557,21 @@ class IFConverterApp {
                 this.openLightbox(pageIndex);
             }
         });
-        
+
         const downloadBtn = card.querySelector('.btn-download');
         downloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.downloadCanvas(canvas, `${name.replace(/\s+/g, '_')}`);
         });
-        
+
         this.pagesContainer.appendChild(card);
     }
-    
+
     async openLightbox(pageIndex) {
         if (!this.allPages || !this.allPages[pageIndex]) return;
         const { page, name } = this.allPages[pageIndex];
         const renderOptions = this.getRenderOptions();
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'lightbox-overlay';
         overlay.innerHTML = `
@@ -576,26 +586,26 @@ class IFConverterApp {
                 </div>
             </div>
         `;
-        
+
         const scrollEl = overlay.querySelector('.lightbox-scroll');
         const loadingEl = overlay.querySelector('.lightbox-loading');
         const titleEl = overlay.querySelector('.lightbox-title');
-        
+
         const close = () => {
             overlay.remove();
             document.body.style.overflow = '';
         };
-        
+
         overlay.querySelector('.lightbox-backdrop').addEventListener('click', close);
         overlay.querySelector('.lightbox-close').addEventListener('click', close);
         overlay.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') close();
         });
-        
+
         document.body.style.overflow = 'hidden';
         document.body.appendChild(overlay);
         overlay.querySelector('.lightbox-close').focus();
-        
+
         try {
             const fullCanvas = await this.renderer.renderPage(
                 page,
@@ -629,7 +639,7 @@ class IFConverterApp {
             loadingEl.textContent = 'Failed to render: ' + err.message;
         }
     }
-    
+
     getOutputLabel() {
         const format = this.outputFormatSelect?.value || 'png';
         return format.toUpperCase();
@@ -678,14 +688,14 @@ class IFConverterApp {
         pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
         pdf.save(`${baseFilename}.pdf`);
     }
-    
+
     async downloadAllAsZip() {
         if (this.renderedPages.length === 0) return;
-        
+
         this.downloadAllBtn.disabled = true;
         const format = this.outputFormatSelect?.value || 'png';
         this.logger.info(format === 'pdf' ? 'Creating PDF file...' : 'Creating ZIP file...');
-        
+
         try {
             if (format === 'pdf') {
                 await this.downloadAllAsPdf();
@@ -694,21 +704,23 @@ class IFConverterApp {
             }
 
             const zip = new JSZip();
-            
+
             for (const { name, canvas } of this.renderedPages) {
                 const exportCanvas = this.createExportCanvas(canvas, format);
                 const dataUrl = exportCanvas.toDataURL(this.getCanvasExportMimeType(format), 0.92);
                 const base64 = dataUrl.split(',')[1];
-                zip.file(`${name.replace(/\s+/g, '_')}.${this.getOutputExtension()}`, base64, { base64: true });
+                zip.file(`${name.replace(/\s+/g, '_')}.${this.getOutputExtension()}`, base64, {
+                    base64: true
+                });
             }
-            
+
             const content = await zip.generateAsync({ type: 'blob' });
-            
+
             const link = document.createElement('a');
             link.download = `photobook_${this.project.projectId || 'export'}.zip`;
             link.href = URL.createObjectURL(content);
             link.click();
-            
+
             URL.revokeObjectURL(link.href);
             this.logger.success('ZIP file downloaded!');
         } catch (error) {
@@ -730,24 +742,27 @@ class IFConverterApp {
 
         this.renderedPages.forEach(({ canvas }, index) => {
             if (index > 0) {
-                pdf.addPage([canvas.width, canvas.height], canvas.width >= canvas.height ? 'landscape' : 'portrait');
+                pdf.addPage(
+                    [canvas.width, canvas.height],
+                    canvas.width >= canvas.height ? 'landscape' : 'portrait'
+                );
             }
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
         });
 
         pdf.save(`photobook_${this.project.projectId || 'export'}.pdf`);
     }
-    
+
     updateProgress(current, total, text) {
         const percent = total > 0 ? (current / total) * 100 : 0;
         this.progressFill.style.width = `${percent}%`;
         this.progressText.textContent = text;
     }
-    
+
     showStatus(message, type = 'info') {
         this.statusEl.textContent = message;
         this.statusEl.className = `status visible ${type}`;
-        
+
         if (type === 'success' || type === 'info') {
             setTimeout(() => {
                 this.statusEl.classList.remove('visible');

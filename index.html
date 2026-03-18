@@ -1,199 +1,208 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IFConverter Web - iFolor Photobook Converter</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='16' y='18' width='68' height='64' rx='12' fill='%233b82f6'/><rect x='28' y='28' width='44' height='6' rx='3' fill='white'/><rect x='28' y='42' width='34' height='6' rx='3' fill='white'/><rect x='28' y='56' width='28' height='6' rx='3' fill='white'/></svg>">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>IFConverter <span class="web-badge">Browser</span></h1>
-            <p class="subtitle">Convert iFolor photobooks into clean image or PDF exports directly in your browser.</p>
-        </header>
-        
-        <div class="drop-zone" id="dropZone">
-            <div class="drop-zone-content">
-                <div class="drop-icon" aria-hidden="true"></div>
-                <h2>Drop your photobook folder here</h2>
-                <p>Or select files manually:</p>
-                <div class="file-inputs">
-                    <div class="file-input-wrapper">
-                        <button class="btn btn-primary" type="button">
-                            Select Project.ipp
-                        </button>
-                        <input type="file" id="ippFile" accept=".ipp,.bak">
-                    </div>
-                    <div class="file-input-wrapper">
-                        <button class="btn btn-secondary" type="button">
-                            Select Photos
-                        </button>
-                        <input type="file" id="photosInput" multiple accept="image/*">
-                    </div>
-                    <div class="file-input-wrapper">
-                        <button class="btn btn-secondary" type="button">
-                            Select Texts
-                        </button>
-                        <input type="file" id="textsInput" multiple>
-                    </div>
-                </div>
-                <p class="privacy-note">
-                    Your files stay local. Nothing is uploaded to any server.
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>IFConverter Web - iFolor Photobook Converter</title>
+        <link rel="stylesheet" href="css/style.css" />
+        <link
+            rel="icon"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='16' y='18' width='68' height='64' rx='12' fill='%233b82f6'/><rect x='28' y='28' width='44' height='6' rx='3' fill='white'/><rect x='28' y='42' width='34' height='6' rx='3' fill='white'/><rect x='28' y='56' width='28' height='6' rx='3' fill='white'/></svg>"
+        />
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>IFConverter <span class="web-badge">Browser</span></h1>
+                <p class="subtitle">
+                    Convert iFolor photobooks into clean image or PDF exports directly in your
+                    browser.
                 </p>
-            </div>
-        </div>
-        
-        <div class="options-panel" id="optionsPanel">
-            <h3>Options</h3>
-            <div class="options-section">
-                <h4>Output</h4>
-                <div class="options-grid">
-                    <div class="option-group">
-                        <label for="dpiSelect">Output DPI:</label>
-                        <select id="dpiSelect">
-                            <option value="72">72 (Screen)</option>
-                            <option value="150">150 (Draft)</option>
-                            <option value="300" selected>300 (Print)</option>
-                            <option value="600">600 (High Quality)</option>
-                        </select>
-                    </div>
-                    <div class="option-group">
-                        <label for="outputFormatSelect">Output Format:</label>
-                        <select id="outputFormatSelect">
-                            <option value="png" selected>PNG</option>
-                            <option value="jpg">JPG</option>
-                            <option value="pdf">Single PDF</option>
-                        </select>
-                    </div>
-                    <div class="option-group">
-                        <label for="scaleSelect">Preview Scale:</label>
-                        <select id="scaleSelect">
-                            <option value="0.25">25%</option>
-                            <option value="0.5" selected>50%</option>
-                            <option value="0.75">75%</option>
-                            <option value="1">100%</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="options-section">
-                <h4>Color Adjustments</h4>
-                <div class="options-grid">
-                    <div class="option-group">
-                        <label for="backgroundModeSelect">Background:</label>
-                        <select id="backgroundModeSelect">
-                            <option value="photobook" selected>Use photobook color</option>
-                            <option value="fixed">Override with fixed color</option>
-                            <option value="transparent">Transparent (PNG/PDF only)</option>
-                        </select>
-                    </div>
-                    <div class="option-group">
-                        <label for="bgColor">Background Override:</label>
-                        <input type="color" id="bgColor" value="#ffffff">
-                    </div>
-                    <div class="option-group">
-                        <label for="fontColorModeSelect">Font Color:</label>
-                        <select id="fontColorModeSelect">
-                            <option value="photobook" selected>Use photobook color</option>
-                            <option value="fixed">Override with fixed color</option>
-                        </select>
-                    </div>
-                    <div class="option-group">
-                        <label for="fontColorInput">Font Override:</label>
-                        <input type="color" id="fontColorInput" value="#000000">
-                    </div>
-                </div>
-                <p class="options-note">Transparent background is available for PNG and PDF exports only.</p>
-            </div>
-        </div>
-        
-        <div class="status" id="status"></div>
-        
-        <div class="project-info" id="projectInfo">
-            <h3>Project Information</h3>
-            <dl id="projectDetails"></dl>
-            <div class="progress-container">
-                <div class="progress-text" id="progressText">Ready</div>
-                <div class="progress-bar">
-                    <div class="progress-bar-fill" id="progressFill"></div>
-                </div>
-            </div>
-            <div class="action-buttons">
-                <button class="btn btn-primary" id="renderBtn" disabled>
-                    Render All Pages
-                </button>
-                <button class="btn btn-secondary" id="renderSomeBtn" disabled>
-                    Render Some Pages
-                </button>
-                <button class="btn btn-secondary" id="downloadAllBtn" disabled>
-                    Download All as ZIP
-                </button>
-            </div>
-        </div>
-        
-        <div class="log" id="log">
-            <div class="log-header">
-                <span>Activity</span>
-                <button class="btn-small" id="clearLogBtn">Clear</button>
-            </div>
-            <div class="log-content" id="logContent"></div>
-        </div>
-        
-        <div class="pages-container" id="pagesContainer"></div>
-        
-        <footer>
-            <p>
-                <a href="https://github.com/ChiefWiggum/ifconverter-web" target="_blank" rel="noopener noreferrer">IFConverter Web - Open Source</a> |
-                Files are processed entirely in your browser
-            </p>
-        </footer>
-    </div>
+            </header>
 
-    <!-- Libraries: CDN first, vendor/ fallback (tests + offline + Cloudflare Pages) -->
-    <script>
-        (function () {
-            function loadScript(src) {
-                return new Promise(function (resolve, reject) {
-                    var s = document.createElement('script');
-                    s.src = src;
-                    s.onload = function () {
-                        resolve();
-                    };
-                    s.onerror = function () {
-                        reject(new Error('load failed: ' + src));
-                    };
-                    document.head.appendChild(s);
-                });
-            }
-            async function loadLib(cdn, local, ok) {
-                try {
-                    await loadScript(cdn);
-                    if (!ok()) await loadScript(local);
-                } catch (e) {
-                    await loadScript(local);
+            <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-content">
+                    <div class="drop-icon" aria-hidden="true"></div>
+                    <h2>Drop your photobook folder here</h2>
+                    <p>Or select files manually:</p>
+                    <div class="file-inputs">
+                        <div class="file-input-wrapper">
+                            <button class="btn btn-primary" type="button">
+                                Select Project.ipp
+                            </button>
+                            <input type="file" id="ippFile" accept=".ipp,.bak" />
+                        </div>
+                        <div class="file-input-wrapper">
+                            <button class="btn btn-secondary" type="button">Select Photos</button>
+                            <input type="file" id="photosInput" multiple accept="image/*" />
+                        </div>
+                        <div class="file-input-wrapper">
+                            <button class="btn btn-secondary" type="button">Select Texts</button>
+                            <input type="file" id="textsInput" multiple />
+                        </div>
+                    </div>
+                    <p class="privacy-note">
+                        Your files stay local. Nothing is uploaded to any server.
+                    </p>
+                </div>
+            </div>
+
+            <div class="options-panel" id="optionsPanel">
+                <h3>Options</h3>
+                <div class="options-section">
+                    <h4>Output</h4>
+                    <div class="options-grid">
+                        <div class="option-group">
+                            <label for="dpiSelect">Output DPI:</label>
+                            <select id="dpiSelect">
+                                <option value="72">72 (Screen)</option>
+                                <option value="150">150 (Draft)</option>
+                                <option value="300" selected>300 (Print)</option>
+                                <option value="600">600 (High Quality)</option>
+                            </select>
+                        </div>
+                        <div class="option-group">
+                            <label for="outputFormatSelect">Output Format:</label>
+                            <select id="outputFormatSelect">
+                                <option value="png" selected>PNG</option>
+                                <option value="jpg">JPG</option>
+                                <option value="pdf">Single PDF</option>
+                            </select>
+                        </div>
+                        <div class="option-group">
+                            <label for="scaleSelect">Preview Scale:</label>
+                            <select id="scaleSelect">
+                                <option value="0.25">25%</option>
+                                <option value="0.5" selected>50%</option>
+                                <option value="0.75">75%</option>
+                                <option value="1">100%</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="options-section">
+                    <h4>Color Adjustments</h4>
+                    <div class="options-grid">
+                        <div class="option-group">
+                            <label for="backgroundModeSelect">Background:</label>
+                            <select id="backgroundModeSelect">
+                                <option value="photobook" selected>Use photobook color</option>
+                                <option value="fixed">Override with fixed color</option>
+                                <option value="transparent">Transparent (PNG/PDF only)</option>
+                            </select>
+                        </div>
+                        <div class="option-group">
+                            <label for="bgColor">Background Override:</label>
+                            <input type="color" id="bgColor" value="#ffffff" />
+                        </div>
+                        <div class="option-group">
+                            <label for="fontColorModeSelect">Font Color:</label>
+                            <select id="fontColorModeSelect">
+                                <option value="photobook" selected>Use photobook color</option>
+                                <option value="fixed">Override with fixed color</option>
+                            </select>
+                        </div>
+                        <div class="option-group">
+                            <label for="fontColorInput">Font Override:</label>
+                            <input type="color" id="fontColorInput" value="#000000" />
+                        </div>
+                    </div>
+                    <p class="options-note">
+                        Transparent background is available for PNG and PDF exports only.
+                    </p>
+                </div>
+            </div>
+
+            <div class="status" id="status"></div>
+
+            <div class="project-info" id="projectInfo">
+                <h3>Project Information</h3>
+                <dl id="projectDetails"></dl>
+                <div class="progress-container">
+                    <div class="progress-text" id="progressText">Ready</div>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="renderBtn" disabled>
+                        Render All Pages
+                    </button>
+                    <button class="btn btn-secondary" id="renderSomeBtn" disabled>
+                        Render Some Pages
+                    </button>
+                    <button class="btn btn-secondary" id="downloadAllBtn" disabled>
+                        Download All as ZIP
+                    </button>
+                </div>
+            </div>
+
+            <div class="log" id="log">
+                <div class="log-header">
+                    <span>Activity</span>
+                    <button class="btn-small" id="clearLogBtn">Clear</button>
+                </div>
+                <div class="log-content" id="logContent"></div>
+            </div>
+
+            <div class="pages-container" id="pagesContainer"></div>
+
+            <footer>
+                <p>
+                    <a
+                        href="https://github.com/ChiefWiggum/ifconverter-web"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >IFConverter Web - Open Source</a
+                    >
+                    | Files are processed entirely in your browser
+                </p>
+            </footer>
+        </div>
+
+        <!-- Libraries: CDN first, vendor/ fallback (tests + offline + Cloudflare Pages) -->
+        <script>
+            (function () {
+                function loadScript(src) {
+                    return new Promise(function (resolve, reject) {
+                        var s = document.createElement('script');
+                        s.src = src;
+                        s.onload = function () {
+                            resolve();
+                        };
+                        s.onerror = function () {
+                            reject(new Error('load failed: ' + src));
+                        };
+                        document.head.appendChild(s);
+                    });
                 }
-            }
-            var CDN_PAKO = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
-            var CDN_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            var CDN_JSPDF = 'https://unpkg.com/jspdf@4.2.0/dist/jspdf.umd.min.js';
-            (async function () {
-                await loadLib(CDN_PAKO, 'vendor/pako.min.js', function () {
-                    return typeof pako !== 'undefined';
-                });
-                await loadLib(CDN_JSZIP, 'vendor/jszip.min.js', function () {
-                    return typeof JSZip !== 'undefined';
-                });
-                await loadLib(CDN_JSPDF, 'vendor/jspdf.umd.min.js', function () {
-                    return typeof window.jspdf !== 'undefined';
-                });
-                var m = document.createElement('script');
-                m.type = 'module';
-                m.src = 'js/app.js';
-                document.body.appendChild(m);
+                async function loadLib(cdn, local, ok) {
+                    try {
+                        await loadScript(cdn);
+                        if (!ok()) await loadScript(local);
+                    } catch (e) {
+                        await loadScript(local);
+                    }
+                }
+                var CDN_PAKO = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+                var CDN_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                var CDN_JSPDF = 'https://unpkg.com/jspdf@4.2.0/dist/jspdf.umd.min.js';
+                (async function () {
+                    await loadLib(CDN_PAKO, 'vendor/pako.min.js', function () {
+                        return typeof pako !== 'undefined';
+                    });
+                    await loadLib(CDN_JSZIP, 'vendor/jszip.min.js', function () {
+                        return typeof JSZip !== 'undefined';
+                    });
+                    await loadLib(CDN_JSPDF, 'vendor/jspdf.umd.min.js', function () {
+                        return typeof window.jspdf !== 'undefined';
+                    });
+                    var m = document.createElement('script');
+                    m.type = 'module';
+                    m.src = 'js/app.js';
+                    document.body.appendChild(m);
+                })();
             })();
-        })();
-    </script>
-</body>
+        </script>
+    </body>
 </html>
