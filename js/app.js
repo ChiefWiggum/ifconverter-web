@@ -162,6 +162,10 @@ class IFConverterApp {
         this.scaleSelect.addEventListener('change', () => {
             this.rerenderCurrentSelection();
         });
+        this.dpiSelect.addEventListener('change', () => {
+            this.rerenderCurrentSelection();
+            this.handleRenderOptionChange();
+        });
         this.outputFormatSelect.addEventListener('change', () => this.handleRenderOptionChange());
         this.backgroundModeSelect.addEventListener('change', () => this.handleRenderOptionChange());
         this.bgColorInput.addEventListener('change', () => this.handleRenderOptionChange());
@@ -239,6 +243,51 @@ class IFConverterApp {
         document.querySelectorAll('.btn-download').forEach((button) => {
             button.textContent = `Download ${this.getOutputLabel()}`;
         });
+    }
+
+    yieldToBrowser() {
+        return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    showExportBusy(message, progress = null) {
+        const overlay = document.getElementById('exportBusyOverlay');
+        const msgEl = document.getElementById('exportBusyMessage');
+        const barWrap = document.getElementById('exportBusyBarWrap');
+        const barFill = document.getElementById('exportBusyBarFill');
+        if (!overlay || !msgEl) return;
+        msgEl.textContent = message;
+        if (progress === null) {
+            if (barWrap) barWrap.hidden = true;
+            if (barFill) barFill.style.width = '0%';
+        } else {
+            if (barWrap) barWrap.hidden = false;
+            if (barFill) {
+                barFill.style.width = `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`;
+            }
+        }
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    setExportBusyProgress(message, progress) {
+        const msgEl = document.getElementById('exportBusyMessage');
+        const barWrap = document.getElementById('exportBusyBarWrap');
+        const barFill = document.getElementById('exportBusyBarFill');
+        if (msgEl) msgEl.textContent = message;
+        if (barWrap) barWrap.hidden = false;
+        if (barFill) {
+            barFill.style.width = `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`;
+        }
+    }
+
+    hideExportBusy() {
+        const overlay = document.getElementById('exportBusyOverlay');
+        const barFill = document.getElementById('exportBusyBarFill');
+        if (barFill) barFill.style.width = '0%';
+        if (overlay) {
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+        }
     }
 
     getRenderOptions() {
@@ -677,9 +726,9 @@ class IFConverterApp {
         });
 
         const downloadBtn = card.querySelector('.btn-download');
-        downloadBtn.addEventListener('click', (e) => {
+        downloadBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            this.downloadCanvas(canvas, `${name.replace(/\s+/g, '_')}`);
+            await this.downloadCanvas(canvas, `${name.replace(/\s+/g, '_')}`);
         });
 
         this.pagesContainer.appendChild(card);
@@ -784,10 +833,10 @@ class IFConverterApp {
         return flattened;
     }
 
-    downloadCanvas(canvas, baseFilename) {
+    async downloadCanvas(canvas, baseFilename) {
         const format = this.outputFormatSelect?.value || 'png';
         if (format === 'pdf') {
-            this.downloadSinglePagePdf(canvas, baseFilename);
+            await this.downloadSinglePagePdf(canvas, baseFilename);
             return;
         }
         const exportCanvas = this.createExportCanvas(canvas, format);
@@ -797,14 +846,20 @@ class IFConverterApp {
         link.click();
     }
 
-    downloadSinglePagePdf(canvas, baseFilename) {
-        const pdf = new window.jspdf.jsPDF({
-            orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [canvas.width, canvas.height]
-        });
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
-        pdf.save(`${baseFilename}.pdf`);
+    async downloadSinglePagePdf(canvas, baseFilename) {
+        this.showExportBusy('Building PDF…');
+        await this.yieldToBrowser();
+        try {
+            const pdf = new window.jspdf.jsPDF({
+                orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`${baseFilename}.pdf`);
+        } finally {
+            this.hideExportBusy();
+        }
     }
 
     async downloadAllAsZip() {
@@ -852,23 +907,45 @@ class IFConverterApp {
         const firstCanvas = this.renderedPages[0]?.canvas;
         if (!firstCanvas) return;
 
-        const pdf = new window.jspdf.jsPDF({
-            orientation: firstCanvas.width >= firstCanvas.height ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [firstCanvas.width, firstCanvas.height]
-        });
+        const total = this.renderedPages.length;
+        this.showExportBusy(`Encoding page 1 of ${total}…`, 0);
+        await this.yieldToBrowser();
 
-        this.renderedPages.forEach(({ canvas }, index) => {
-            if (index > 0) {
-                pdf.addPage(
-                    [canvas.width, canvas.height],
-                    canvas.width >= canvas.height ? 'landscape' : 'portrait'
+        try {
+            const pdf = new window.jspdf.jsPDF({
+                orientation: firstCanvas.width >= firstCanvas.height ? 'landscape' : 'portrait',
+                unit: 'px',
+                format: [firstCanvas.width, firstCanvas.height]
+            });
+
+            for (let index = 0; index < total; index++) {
+                const { canvas } = this.renderedPages[index];
+                this.setExportBusyProgress(
+                    `Encoding page ${index + 1} of ${total}…`,
+                    index / total
                 );
+                await this.yieldToBrowser();
+                if (index > 0) {
+                    pdf.addPage(
+                        [canvas.width, canvas.height],
+                        canvas.width >= canvas.height ? 'landscape' : 'portrait'
+                    );
+                }
+                const dataUrl = canvas.toDataURL('image/png');
+                this.setExportBusyProgress(
+                    `Adding page ${index + 1} of ${total}…`,
+                    (index + 1) / total
+                );
+                await this.yieldToBrowser();
+                pdf.addImage(dataUrl, 'PNG', 0, 0, canvas.width, canvas.height);
             }
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
-        });
 
-        pdf.save(`photobook_${this.project.projectId || 'export'}.pdf`);
+            this.setExportBusyProgress('Saving PDF…', 1);
+            await this.yieldToBrowser();
+            pdf.save(`photobook_${this.project.projectId || 'export'}.pdf`);
+        } finally {
+            this.hideExportBusy();
+        }
     }
 
     updateProgress(current, total, text) {

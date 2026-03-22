@@ -42,9 +42,9 @@ Then open http://localhost:8080 in your browser.
     - Use the file buttons to select `Project.ipp`, Photos, and Texts separately
 
 2. **Configure options** (optional):
-    - **Output DPI**: Quality of rendered images (72-600)
+    - **Output DPI**: Export pixel density relative to each page’s design DPI (higher = larger files and more detail)
+    - **Preview Scale**: Shrink or enlarge the page on screen and in every export (PNG, JPG, PDF)
     - **Background Color**: Override the page background
-    - **Preview Scale**: Reduce preview size for faster rendering
 
 3. **Render pages**:
     - Click "Render All Pages" to generate PNG images

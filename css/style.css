@@ -853,6 +853,75 @@ h1 {
     border-top: 1px solid var(--border-color);
 }
 
+/* PDF / export busy overlay */
+.export-busy-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(6px);
+}
+
+.export-busy-overlay[hidden] {
+    display: none !important;
+}
+
+.export-busy-panel {
+    min-width: 280px;
+    max-width: 90vw;
+    padding: 28px 32px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.export-busy-spinner {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 16px;
+    border: 3px solid var(--bg-accent);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: exportBusySpin 0.75s linear infinite;
+}
+
+.export-busy-message {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+    line-height: 1.45;
+}
+
+.export-busy-bar-wrap {
+    margin-top: 4px;
+}
+
+.export-busy-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--bg-accent);
+    overflow: hidden;
+}
+
+.export-busy-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: var(--accent-gradient);
+    transition: width 0.2s ease-out;
+}
+
+@keyframes exportBusySpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Footer */
 footer {
     text-align: center;

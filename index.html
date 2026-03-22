@@ -151,6 +151,10 @@
                     <p class="options-note">
                         Transparent background is available for PNG and PDF exports only.
                     </p>
+                    <p class="options-note">
+                        Output DPI sets export pixel density (relative to each page’s design DPI). Use Preview
+                        Scale to resize previews and all exports together.
+                    </p>
                 </div>
                 </div>
             </div>
@@ -207,6 +211,18 @@
                     | Files are processed entirely in your browser
                 </p>
             </footer>
+        </div>
+
+        <div id="exportBusyOverlay" class="export-busy-overlay" hidden aria-hidden="true">
+            <div class="export-busy-panel" role="status" aria-live="polite">
+                <div class="export-busy-spinner" aria-hidden="true"></div>
+                <p class="export-busy-message" id="exportBusyMessage">Working…</p>
+                <div class="export-busy-bar-wrap" id="exportBusyBarWrap" hidden>
+                    <div class="export-busy-bar">
+                        <div class="export-busy-bar-fill" id="exportBusyBarFill"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Libraries: CDN first, vendor/ fallback (tests + offline + Cloudflare Pages) -->

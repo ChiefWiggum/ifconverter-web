@@ -23,8 +23,8 @@ export class PageRenderer {
      * @param {Map} photos - Map of filename to File objects
      * @param {Map} texts - Map of filename to File objects
      * @param {IFolorParser} parser - Parser instance for text files
-     * @param {number} scale - Scale factor for preview
-     * @param {Object|string} renderOptions - Render options or legacy background color
+     * @param {number} scale - Preview scale (fraction of native page size at the book’s DPI)
+     * @param {Object|string} renderOptions - Render options or legacy background color; includes `dpi` (output DPI)
      * @param {Function} log - Logging function
      * @returns {HTMLCanvasElement}
      */
@@ -39,10 +39,13 @@ export class PageRenderer {
         log = () => {}
     ) {
         const desc = page.pageDescription;
-        const width = Math.round(desc.width * scale);
-        const height = Math.round(desc.height * scale);
-        const dpiScale = (desc.dpi || 300) / 96;
         const options = this.normalizeRenderOptions(renderOptions);
+        const pageDpi = desc.dpi || 300;
+        const outputDpi = options.dpi || 300;
+        const pixelScale = scale * (outputDpi / pageDpi);
+        const width = Math.round(desc.width * pixelScale);
+        const height = Math.round(desc.height * pixelScale);
+        const dpiScale = pageDpi / 96;
 
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -86,7 +89,7 @@ export class PageRenderer {
                 photos,
                 texts,
                 parser,
-                scale,
+                pixelScale,
                 dpiScale,
                 options,
                 log
@@ -101,24 +104,31 @@ export class PageRenderer {
                 photos,
                 texts,
                 parser,
-                scale,
+                pixelScale,
                 dpiScale,
                 options,
                 log
             );
         }
 
-        return this.trimCoverBleed(canvas, page, scale);
+        return this.trimCoverBleed(canvas, page, pixelScale);
     }
 
     normalizeRenderOptions(renderOptions) {
+        const parseDpi = (v) => {
+            const n = typeof v === 'number' ? v : parseInt(String(v ?? '300'), 10);
+            if (!Number.isFinite(n) || n < 1) return 300;
+            return Math.min(1200, Math.max(1, Math.round(n)));
+        };
+
         if (typeof renderOptions === 'string') {
             return {
                 backgroundMode: 'photobook',
                 backgroundColor: renderOptions,
                 fontColorMode: 'photobook',
                 fontColor: '#000000',
-                legacyFallback: true
+                legacyFallback: true,
+                dpi: 300
             };
         }
 
@@ -127,7 +137,8 @@ export class PageRenderer {
             backgroundColor: renderOptions?.backgroundColor || '#ffffff',
             fontColorMode: renderOptions?.fontColorMode || 'photobook',
             fontColor: renderOptions?.fontColor || '#000000',
-            legacyFallback: false
+            legacyFallback: false,
+            dpi: parseDpi(renderOptions?.dpi)
         };
     }
 
@@ -144,16 +155,16 @@ export class PageRenderer {
         );
     }
 
-    trimCoverBleed(canvas, page, scale) {
+    trimCoverBleed(canvas, page, pixelScale) {
         if (!this.isTrimmedCoverSpread(page)) {
             return canvas;
         }
 
         const rect = page.pageDescription.pageCutting.rectangle;
-        const cropX = Math.max(0, Math.round(rect.x * scale));
-        const cropY = Math.max(0, Math.round(rect.y * scale));
-        const cropWidth = Math.min(canvas.width - cropX, Math.round(rect.width * scale));
-        const cropHeight = Math.min(canvas.height - cropY, Math.round(rect.height * scale));
+        const cropX = Math.max(0, Math.round(rect.x * pixelScale));
+        const cropY = Math.max(0, Math.round(rect.y * pixelScale));
+        const cropWidth = Math.min(canvas.width - cropX, Math.round(rect.width * pixelScale));
+        const cropHeight = Math.min(canvas.height - cropY, Math.round(rect.height * pixelScale));
 
         if (cropWidth <= 0 || cropHeight <= 0) {
             return canvas;
@@ -189,7 +200,7 @@ export class PageRenderer {
         photos,
         texts,
         parser,
-        scale,
+        pixelScale,
         dpiScale,
         renderOptions,
         log
@@ -204,7 +215,7 @@ export class PageRenderer {
 
         try {
             if (foreground.type === 'color') {
-                this.drawColorContent(ctx, obj, scale, renderOptions, log);
+                this.drawColorContent(ctx, obj, pixelScale, renderOptions, log);
             } else if (foreground.type === 'text' || contentType === 'Text') {
                 console.log(
                     '[renderer] Text object found, textId:',
@@ -219,13 +230,13 @@ export class PageRenderer {
                     project,
                     texts,
                     parser,
-                    scale,
+                    pixelScale,
                     dpiScale,
                     renderOptions,
                     log
                 );
             } else if (foreground.type === 'image' || contentType === 'Image') {
-                await this.drawImage(ctx, obj, project, photos, scale, log);
+                await this.drawImage(ctx, obj, project, photos, pixelScale, log);
             } else {
                 console.log('[renderer] Unknown object type:', foreground.type, contentType);
             }
@@ -235,7 +246,7 @@ export class PageRenderer {
         }
     }
 
-    async drawImage(ctx, obj, project, photos, scale, log) {
+    async drawImage(ctx, obj, project, photos, pixelScale, log) {
         const foreground = obj.foreground;
         if (!foreground) return;
 
@@ -278,10 +289,10 @@ export class PageRenderer {
 
             // Get rectangle
             const rect = obj.rectangle;
-            const x = rect.x * scale;
-            const y = rect.y * scale;
-            const width = rect.width * scale;
-            const height = rect.height * scale;
+            const x = rect.x * pixelScale;
+            const y = rect.y * pixelScale;
+            const width = rect.width * pixelScale;
+            const height = rect.height * pixelScale;
 
             // Create a temporary canvas for transformations
             const tempCanvas = document.createElement('canvas');
@@ -577,7 +588,7 @@ export class PageRenderer {
         return null;
     }
 
-    async drawText(ctx, obj, page, project, texts, parser, scale, dpiScale, renderOptions, log) {
+    async drawText(ctx, obj, page, project, texts, parser, pixelScale, dpiScale, renderOptions, log) {
         const foreground = obj.foreground;
         if (!foreground) return;
 
@@ -620,10 +631,10 @@ export class PageRenderer {
 
             // Get rectangle
             const rect = obj.rectangle;
-            const x = rect.x * scale;
-            const y = rect.y * scale;
-            let width = Math.max(1, rect.width * scale);
-            let height = Math.max(1, rect.height * scale);
+            const x = rect.x * pixelScale;
+            const y = rect.y * pixelScale;
+            let width = Math.max(1, rect.width * pixelScale);
+            let height = Math.max(1, rect.height * pixelScale);
 
             // Get text style from object or use defaults
             const textStyle = obj.textStyle || {};
@@ -652,7 +663,7 @@ export class PageRenderer {
             };
 
             const align = (horizontalAlign || 'Left').toLowerCase();
-            const textScaleFactor = scale * dpiScale;
+            const textScaleFactor = pixelScale * dpiScale;
             const paragraphs = textData.paragraphs?.length
                 ? textData.paragraphs
                 : [{ runs: textData.runs, textAlignment: textData.textAlignment }];
@@ -665,7 +676,7 @@ export class PageRenderer {
                 let fontSize =
                     (run.fontSize ?? textStyle.fontSize ?? textData.defaultStyle?.fontSize ?? 12) *
                     textScaleFactor;
-                if (!Number.isFinite(fontSize) || fontSize < 1) fontSize = Math.max(scale, 1);
+                if (!Number.isFinite(fontSize) || fontSize < 1) fontSize = Math.max(pixelScale, 1);
 
                 const fontFamily = (
                     run.fontFamily ||
@@ -826,7 +837,7 @@ export class PageRenderer {
         }
     }
 
-    drawColorContent(ctx, obj, scale, renderOptions, log) {
+    drawColorContent(ctx, obj, pixelScale, renderOptions, log) {
         const foreground = obj.foreground;
         if (!foreground?.color) return;
         if (renderOptions.backgroundMode === 'transparent') return;
@@ -841,7 +852,12 @@ export class PageRenderer {
         ctx.save();
         ctx.globalAlpha = obj.foregroundOpacity || 1;
         ctx.fillStyle = fillStyle;
-        ctx.fillRect(rect.x * scale, rect.y * scale, rect.width * scale, rect.height * scale);
+        ctx.fillRect(
+            rect.x * pixelScale,
+            rect.y * pixelScale,
+            rect.width * pixelScale,
+            rect.height * pixelScale
+        );
         ctx.restore();
 
         log(`Drew color fill`);
