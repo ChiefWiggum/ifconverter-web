@@ -440,6 +440,7 @@ class IFConverterApp {
             this.logEl.classList.add('visible');
             this.updateOptionControlState();
             this.syncPdfMetadataFromProject();
+            this.updateDpiSelectLabels();
             this.collapseDropZone();
 
             this.checkReadyState();
@@ -614,6 +615,39 @@ class IFConverterApp {
             <dt>Texts</dt>
             <dd>${fields.textsLabel}</dd>
         `;
+    }
+
+    /**
+     * Appends cover page approximate export size per DPI option (matches renderer pixelScale at 100% preview).
+     */
+    updateDpiSelectLabels() {
+        if (!this.dpiSelect) return;
+
+        const desc = this.project?.cover?.pageDescription;
+        const hasDims =
+            desc &&
+            Number.isFinite(desc.width) &&
+            Number.isFinite(desc.height) &&
+            desc.width > 0 &&
+            desc.height > 0;
+
+        const pageDpi = hasDims ? desc.dpi || 300 : null;
+
+        for (const opt of this.dpiSelect.querySelectorAll('option')) {
+            const base = opt.getAttribute('data-base-label') || opt.textContent;
+            if (!hasDims || !pageDpi || pageDpi <= 0) {
+                opt.textContent = base;
+                continue;
+            }
+            const outputDpi = parseInt(opt.value, 10);
+            if (!Number.isFinite(outputDpi)) {
+                opt.textContent = base;
+                continue;
+            }
+            const w = Math.round(desc.width * (outputDpi / pageDpi));
+            const h = Math.round(desc.height * (outputDpi / pageDpi));
+            opt.textContent = `${base} (~ ${w}×${h} pixels)`;
+        }
     }
 
     checkReadyState() {
