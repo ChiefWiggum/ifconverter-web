@@ -26,6 +26,8 @@ class IFConverterApp {
         this.logger = new Logger('logContent');
 
         this.project = null;
+        /** Set when the user drops a folder (root directory name); cleared when picking .ipp via file dialog. */
+        this.photobookFolderName = null;
         this.photos = new Map();
         this.texts = new Map();
         this.renderedPages = [];
@@ -42,6 +44,7 @@ class IFConverterApp {
         this.dropZoneSummary = document.getElementById('dropZoneSummary');
         this.dropZoneSummaryDetails = document.getElementById('dropZoneSummaryDetails');
         this.dropZoneExpandBtn = document.getElementById('dropZoneExpandBtn');
+        this.dropZoneTitle = document.getElementById('dropZoneTitle');
 
         // File inputs
         this.ippFileInput = document.getElementById('ippFile');
@@ -136,6 +139,7 @@ class IFConverterApp {
         // File inputs
         this.ippFileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
+                this.photobookFolderName = null;
                 this.loadProjectFile(e.target.files[0]);
             }
         });
@@ -320,13 +324,14 @@ class IFConverterApp {
 
     async handleDrop(dataTransfer) {
         const items = dataTransfer.items;
+        this.photobookFolderName = null;
 
         for (const item of items) {
             if (item.kind === 'file') {
                 const entry = item.webkitGetAsEntry?.();
                 if (entry) {
                     if (entry.isDirectory) {
-                        await this.processDirectory(entry);
+                        await this.processDirectory(entry, true);
                     } else {
                         await this.processFile(entry);
                     }
@@ -343,7 +348,15 @@ class IFConverterApp {
         this.checkReadyState();
     }
 
-    async processDirectory(dirEntry) {
+    async processFile(fileEntry) {
+        const file = await this.getFileFromEntry(fileEntry);
+        await this.processDroppedFile(file, fileEntry.fullPath || '');
+    }
+
+    async processDirectory(dirEntry, isDroppedRoot = false) {
+        if (isDroppedRoot) {
+            this.photobookFolderName = dirEntry.name || null;
+        }
         this.logger.info(`Processing directory: ${dirEntry.name}`);
 
         const entries = await this.readDirectoryEntries(dirEntry);
@@ -355,7 +368,7 @@ class IFConverterApp {
             } else if (entry.isDirectory) {
                 // Process subdirectories (Photos, Texts)
                 if (entry.name === 'Photos' || entry.name === 'Texts') {
-                    await this.processDirectory(entry);
+                    await this.processDirectory(entry, false);
                 }
             }
         }
@@ -485,10 +498,10 @@ class IFConverterApp {
 
     syncPdfMetadataFromProject() {
         if (!this.project) return;
+        const folder = this.photobookFolderName?.trim();
         const name = this.project.name?.trim();
-        const id = this.project.projectId?.trim();
         if (this.pdfTitleInput) {
-            this.pdfTitleInput.value = name || id || 'Photobook';
+            this.pdfTitleInput.value = folder || name || 'Photobook';
         }
         if (this.pdfSubjectInput) {
             this.pdfSubjectInput.value = 'Photobook export';
@@ -497,7 +510,7 @@ class IFConverterApp {
             this.pdfAuthorInput.value = '';
         }
         if (this.pdfKeywordsInput) {
-            this.pdfKeywordsInput.value = id || '';
+            this.pdfKeywordsInput.value = '';
         }
         if (this.pdfCreatorInput) {
             this.pdfCreatorInput.value = 'IFConverter Web';
@@ -552,7 +565,29 @@ class IFConverterApp {
         this.updateDropZoneSummary();
     }
 
+    updatePhotobookPanelTitle() {
+        if (!this.dropZoneTitle) return;
+        if (this.project) {
+            const folder = this.photobookFolderName?.trim();
+            const name = this.project.name?.trim();
+            this.dropZoneTitle.textContent = folder || name || 'Photobook';
+        } else {
+            this.dropZoneTitle.textContent = 'Photobook';
+        }
+    }
+
+    /** Safe base name for PDF/ZIP downloads (no Photobook ID). */
+    getPhotobookExportSlug() {
+        const raw = (this.photobookFolderName?.trim() || this.project?.name?.trim() || 'export')
+            .replace(/[\\/:*?"<>|]+/g, '_')
+            .replace(/\s+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '');
+        return (raw || 'export').slice(0, 120);
+    }
+
     updateDropZoneSummary() {
+        this.updatePhotobookPanelTitle();
         const fields = this.getProjectInfoFields();
         if (!fields || !this.dropZoneSummaryDetails) return;
 
@@ -957,7 +992,7 @@ class IFConverterApp {
             const content = await zip.generateAsync({ type: 'blob' });
 
             const link = document.createElement('a');
-            link.download = `photobook_${this.project.projectId || 'export'}.zip`;
+            link.download = `photobook_${this.getPhotobookExportSlug()}.zip`;
             link.href = URL.createObjectURL(content);
             link.click();
 
@@ -1010,7 +1045,7 @@ class IFConverterApp {
 
             this.setExportBusyProgress('Saving PDF…', 1);
             await this.yieldToBrowser();
-            pdf.save(`photobook_${this.project.projectId || 'export'}.pdf`);
+            pdf.save(`photobook_${this.getPhotobookExportSlug()}.pdf`);
         } finally {
             this.hideExportBusy();
         }
