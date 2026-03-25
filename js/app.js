@@ -730,7 +730,7 @@ class IFConverterApp {
                     renderOptions,
                     (msg) => this.logger.info(`  ${msg}`)
                 );
-                this.addPageCard(name, canvas, i, k + 1, total);
+                this.addPageCard(name, canvas, i, i + 1, allPages.length);
                 this.renderedPages.push({ name, canvas, pageIndex: i });
                 this.logger.success(`  ${name} rendered successfully`);
             } catch (error) {
