@@ -32,6 +32,7 @@ class IFConverterApp {
         this.texts = new Map();
         this.renderedPages = [];
         this.lastRenderedIndices = [];
+        this._renderInProgress = false;
 
         this.initElements();
         this.initEventListeners();
@@ -175,7 +176,7 @@ class IFConverterApp {
             this.rerenderCurrentSelection();
         });
         this.dpiSelect.addEventListener('change', () => {
-            this.rerenderCurrentSelection();
+            this.discardRenderedPagesAfterDpiChange();
             this.handleRenderOptionChange();
         });
         this.outputFormatSelect.addEventListener('change', () => this.handleRenderOptionChange());
@@ -320,6 +321,18 @@ class IFConverterApp {
         if (this.renderedPages.length > 0 && this.lastRenderedIndices.length > 0) {
             this.renderSelectedPages(this.lastRenderedIndices);
         }
+    }
+
+    /** Clears page previews when output DPI changes; user must render again. */
+    discardRenderedPagesAfterDpiChange() {
+        if (this._renderInProgress) return;
+        if (!this.renderedPages.length) return;
+
+        this.pagesContainer.innerHTML = '';
+        this.renderedPages = [];
+        if (this.downloadAllBtn) this.downloadAllBtn.disabled = true;
+        this.updateProgress(0, 1, 'Ready');
+        this.showStatus('DPI changed. Render again to update the page previews.', 'info');
     }
 
     async handleDrop(dataTransfer) {
@@ -771,48 +784,55 @@ class IFConverterApp {
         this.allPages = allPages;
         this.lastRenderedIndices = [...indices];
 
+        this._renderInProgress = true;
+        if (this.dpiSelect) this.dpiSelect.disabled = true;
         this.renderBtn.disabled = true;
         this.renderSomeBtn.disabled = true;
         this.downloadAllBtn.disabled = true;
         this.pagesContainer.innerHTML = '';
         this.renderedPages = [];
 
-        const scale = parseFloat(this.scaleSelect.value);
-        const renderOptions = this.getRenderOptions();
-        const total = indices.length;
+        try {
+            const scale = parseFloat(this.scaleSelect.value);
+            const renderOptions = this.getRenderOptions();
+            const total = indices.length;
 
-        for (let k = 0; k < indices.length; k++) {
-            const i = indices[k];
-            const { page, name } = allPages[i];
+            for (let k = 0; k < indices.length; k++) {
+                const i = indices[k];
+                const { page, name } = allPages[i];
 
-            this.updateProgress(k, total, `Rendering ${name}...`);
-            this.logger.info(`Rendering ${name}...`);
+                this.updateProgress(k, total, `Rendering ${name}...`);
+                this.logger.info(`Rendering ${name}...`);
 
-            try {
-                const canvas = await this.renderer.renderPage(
-                    page,
-                    this.project,
-                    this.photos,
-                    this.texts,
-                    this.parser,
-                    scale,
-                    renderOptions,
-                    (msg) => this.logger.info(`  ${msg}`)
-                );
-                this.addPageCard(name, canvas, i, i + 1, allPages.length);
-                this.renderedPages.push({ name, canvas, pageIndex: i });
-                this.logger.success(`  ${name} rendered successfully`);
-            } catch (error) {
-                this.logger.error(`  Error rendering ${name}: ${error.message}`);
-                console.error(error);
+                try {
+                    const canvas = await this.renderer.renderPage(
+                        page,
+                        this.project,
+                        this.photos,
+                        this.texts,
+                        this.parser,
+                        scale,
+                        renderOptions,
+                        (msg) => this.logger.info(`  ${msg}`)
+                    );
+                    this.addPageCard(name, canvas, i, i + 1, allPages.length);
+                    this.renderedPages.push({ name, canvas, pageIndex: i });
+                    this.logger.success(`  ${name} rendered successfully`);
+                } catch (error) {
+                    this.logger.error(`  Error rendering ${name}: ${error.message}`);
+                    console.error(error);
+                }
             }
-        }
 
-        this.updateProgress(total, total, 'Complete!');
-        this.renderBtn.disabled = false;
-        this.renderSomeBtn.disabled = false;
-        this.downloadAllBtn.disabled = this.renderedPages.length === 0;
-        this.showStatus(`Rendered ${this.renderedPages.length} pages`, 'success');
+            this.updateProgress(total, total, 'Complete!');
+            this.showStatus(`Rendered ${this.renderedPages.length} pages`, 'success');
+        } finally {
+            this._renderInProgress = false;
+            if (this.dpiSelect) this.dpiSelect.disabled = false;
+            this.renderBtn.disabled = false;
+            this.renderSomeBtn.disabled = false;
+            this.downloadAllBtn.disabled = this.renderedPages.length === 0;
+        }
     }
 
     async renderAllPages() {
