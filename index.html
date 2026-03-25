@@ -121,6 +121,40 @@
                         </div>
                     </div>
                 </div>
+                <div class="options-section pdf-options-section" id="pdfOptionsSection" hidden>
+                    <h4>PDF metadata</h4>
+                    <p class="options-note pdf-options-intro">
+                        These values are written into the PDF file properties (where supported by the viewer).
+                    </p>
+                    <div class="options-grid pdf-meta-grid">
+                        <div class="option-group pdf-meta-field">
+                            <label for="pdfTitleInput">Title</label>
+                            <input type="text" id="pdfTitleInput" name="pdfTitle" autocomplete="off" />
+                        </div>
+                        <div class="option-group pdf-meta-field">
+                            <label for="pdfSubjectInput">Subject</label>
+                            <input type="text" id="pdfSubjectInput" name="pdfSubject" autocomplete="off" />
+                        </div>
+                        <div class="option-group pdf-meta-field">
+                            <label for="pdfAuthorInput">Author</label>
+                            <input type="text" id="pdfAuthorInput" name="pdfAuthor" autocomplete="off" />
+                        </div>
+                        <div class="option-group pdf-meta-field">
+                            <label for="pdfKeywordsInput">Keywords</label>
+                            <input type="text" id="pdfKeywordsInput" name="pdfKeywords" autocomplete="off" />
+                        </div>
+                        <div class="option-group pdf-meta-field">
+                            <label for="pdfCreatorInput">Creator</label>
+                            <input type="text" id="pdfCreatorInput" name="pdfCreator" autocomplete="off" />
+                        </div>
+                        <div class="option-group pdf-meta-checkbox">
+                            <label class="pdf-checkbox-label" for="pdfAppendPageToSubject">
+                                <input type="checkbox" id="pdfAppendPageToSubject" />
+                                Append "Page x of y" to the end of the subject (single-page PDFs only)
+                            </label>
+                        </div>
+                    </div>
+                </div>
                 <div class="options-section">
                     <h4>Color Adjustments</h4>
                     <div class="options-grid">

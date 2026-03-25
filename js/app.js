@@ -59,6 +59,14 @@ class IFConverterApp {
         this.fontColorInput = document.getElementById('fontColorInput');
         this.scaleSelect = document.getElementById('scaleSelect');
 
+        this.pdfOptionsSection = document.getElementById('pdfOptionsSection');
+        this.pdfTitleInput = document.getElementById('pdfTitleInput');
+        this.pdfSubjectInput = document.getElementById('pdfSubjectInput');
+        this.pdfAuthorInput = document.getElementById('pdfAuthorInput');
+        this.pdfKeywordsInput = document.getElementById('pdfKeywordsInput');
+        this.pdfCreatorInput = document.getElementById('pdfCreatorInput');
+        this.pdfAppendPageToSubject = document.getElementById('pdfAppendPageToSubject');
+
         // Status and info
         this.statusEl = document.getElementById('status');
         this.projectInfo = document.getElementById('projectInfo');
@@ -228,6 +236,9 @@ class IFConverterApp {
         }
         if (this.fontColorInput) {
             this.fontColorInput.disabled = this.fontColorModeSelect?.value !== 'fixed';
+        }
+        if (this.pdfOptionsSection) {
+            this.pdfOptionsSection.hidden = format !== 'pdf';
         }
         this.updateDownloadLabels();
     }
@@ -415,6 +426,7 @@ class IFConverterApp {
             this.projectInfo.classList.add('visible');
             this.logEl.classList.add('visible');
             this.updateOptionControlState();
+            this.syncPdfMetadataFromProject();
             this.collapseDropZone();
 
             this.checkReadyState();
@@ -469,6 +481,51 @@ class IFConverterApp {
         if (project?.cover) forPage(project.cover);
         if (project?.pages) for (const page of project.pages) forPage(page);
         return { photoRefs: photoIds.size, textRefs: textIds.size };
+    }
+
+    syncPdfMetadataFromProject() {
+        if (!this.project) return;
+        const name = this.project.name?.trim();
+        const id = this.project.projectId?.trim();
+        if (this.pdfTitleInput) {
+            this.pdfTitleInput.value = name || id || 'Photobook';
+        }
+        if (this.pdfSubjectInput) {
+            this.pdfSubjectInput.value = 'Photobook export';
+        }
+        if (this.pdfAuthorInput) {
+            this.pdfAuthorInput.value = '';
+        }
+        if (this.pdfKeywordsInput) {
+            this.pdfKeywordsInput.value = id || '';
+        }
+        if (this.pdfCreatorInput) {
+            this.pdfCreatorInput.value = 'IFConverter Web';
+        }
+    }
+
+    applyPdfDocumentProperties(pdf, { singlePage = false, exportOrdinal, exportTotal } = {}) {
+        const trim = (el) => (el?.value ?? '').trim();
+        const title = trim(this.pdfTitleInput);
+        let subject = trim(this.pdfSubjectInput);
+        if (singlePage && this.pdfAppendPageToSubject?.checked) {
+            const ord = exportOrdinal != null ? exportOrdinal : 1;
+            const tot = exportTotal != null ? exportTotal : 1;
+            const pagePart = `Page ${ord} of ${tot}`;
+            subject = subject ? `${subject} ${pagePart}` : pagePart;
+        }
+        const author = trim(this.pdfAuthorInput);
+        const keywords = trim(this.pdfKeywordsInput);
+        const creator = trim(this.pdfCreatorInput);
+        const props = {};
+        if (title) props.title = title;
+        if (subject) props.subject = subject;
+        if (author) props.author = author;
+        if (keywords) props.keywords = keywords;
+        if (creator) props.creator = creator;
+        if (Object.keys(props).length > 0) {
+            pdf.setDocumentProperties(props);
+        }
     }
 
     getProjectInfoFields() {
@@ -673,7 +730,7 @@ class IFConverterApp {
                     renderOptions,
                     (msg) => this.logger.info(`  ${msg}`)
                 );
-                this.addPageCard(name, canvas, i);
+                this.addPageCard(name, canvas, i, k + 1, total);
                 this.renderedPages.push({ name, canvas, pageIndex: i });
                 this.logger.success(`  ${name} rendered successfully`);
             } catch (error) {
@@ -698,7 +755,7 @@ class IFConverterApp {
         await this.renderSelectedPages(allPages.map((_, index) => index));
     }
 
-    addPageCard(name, canvas, pageIndex) {
+    addPageCard(name, canvas, pageIndex, exportOrdinal, exportTotal) {
         const card = document.createElement('div');
         card.className = 'page-card';
 
@@ -728,7 +785,12 @@ class IFConverterApp {
         const downloadBtn = card.querySelector('.btn-download');
         downloadBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await this.downloadCanvas(canvas, `${name.replace(/\s+/g, '_')}`);
+            await this.downloadCanvas(
+                canvas,
+                `${name.replace(/\s+/g, '_')}`,
+                exportOrdinal,
+                exportTotal
+            );
         });
 
         this.pagesContainer.appendChild(card);
@@ -833,10 +895,10 @@ class IFConverterApp {
         return flattened;
     }
 
-    async downloadCanvas(canvas, baseFilename) {
+    async downloadCanvas(canvas, baseFilename, exportOrdinal, exportTotal) {
         const format = this.outputFormatSelect?.value || 'png';
         if (format === 'pdf') {
-            await this.downloadSinglePagePdf(canvas, baseFilename);
+            await this.downloadSinglePagePdf(canvas, baseFilename, exportOrdinal, exportTotal);
             return;
         }
         const exportCanvas = this.createExportCanvas(canvas, format);
@@ -846,7 +908,7 @@ class IFConverterApp {
         link.click();
     }
 
-    async downloadSinglePagePdf(canvas, baseFilename) {
+    async downloadSinglePagePdf(canvas, baseFilename, exportOrdinal, exportTotal) {
         this.showExportBusy('Building PDF…');
         await this.yieldToBrowser();
         try {
@@ -854,6 +916,11 @@ class IFConverterApp {
                 orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
                 unit: 'px',
                 format: [canvas.width, canvas.height]
+            });
+            this.applyPdfDocumentProperties(pdf, {
+                singlePage: true,
+                exportOrdinal,
+                exportTotal
             });
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
             pdf.save(`${baseFilename}.pdf`);
@@ -917,6 +984,7 @@ class IFConverterApp {
                 unit: 'px',
                 format: [firstCanvas.width, firstCanvas.height]
             });
+            this.applyPdfDocumentProperties(pdf, { singlePage: false });
 
             for (let index = 0; index < total; index++) {
                 const { canvas } = this.renderedPages[index];

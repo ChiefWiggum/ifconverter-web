@@ -449,7 +449,8 @@ h1 {
 }
 
 .option-group select,
-.option-group input[type='color'] {
+.option-group input[type='color'],
+.option-group input[type='text'] {
     padding: 8px 12px;
     background: #ffffff;
     border: 1px solid var(--border-color);
@@ -459,8 +460,44 @@ h1 {
     cursor: pointer;
 }
 
+.option-group input[type='text'] {
+    cursor: text;
+    min-width: 200px;
+    flex: 1;
+}
+
+.pdf-meta-grid .pdf-meta-field {
+    flex: 1 1 100%;
+}
+
+.pdf-meta-checkbox {
+    flex: 1 1 100%;
+    align-items: flex-start;
+}
+
+.pdf-meta-checkbox .pdf-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    font-weight: 400;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.pdf-meta-checkbox input[type='checkbox'] {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.pdf-options-intro {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
 .option-group select:focus,
-.option-group input[type='color']:focus {
+.option-group input[type='color']:focus,
+.option-group input[type='text']:focus {
     outline: none;
     border-color: rgba(47, 128, 237, 0.45);
     box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.1);
